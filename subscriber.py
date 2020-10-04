@@ -8,6 +8,19 @@ import sys
 import zmq
 import threading
 import time
+from queue import Queue
+
+buffer = Queue()
+
+class printThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+
+    def run(self):
+        while True:
+            if not buffer.empty():
+                ax, ay, az, gx, gy ,gz, mx, my, mz = buffer.get()
+                print("%s %s %s %s %s %s %s %s %s" % (ax, ay, az, gx, gy ,gz, mx, my, mz))
 
 class readThread(threading.Thread):
     def __init__(self):  
@@ -26,7 +39,8 @@ class readThread(threading.Thread):
         while True:
             string = self.sub.recv_string()
             t, ax, ay, az, gx, gy ,gz, mx, my, mz = string.split()
-            print("%s %s %s %s %s %s %s %s %s" % (ax, ay, az, gx, gy ,gz, mx, my, mz))
+            buffer.put((ax, ay, az, gx, gy ,gz, mx, my, mz))
+            
 
 class countingThread(threading.Thread):
     def __init__(self):
@@ -41,13 +55,16 @@ class countingThread(threading.Thread):
 
 
 rt = readThread()
-rt2 = readThread()
+# rt2 = readThread()
+pt = printThread()
 ot = countingThread()
 rt.start()
-rt2.start()
+# rt2.start()
+pt.start()
 ot.start()
 rt.join()
-rt2.join()
+# rt2.join()
+pt.join()
 ot.join()
 
 #  Socket to talk to server
