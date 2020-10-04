@@ -15,16 +15,16 @@ class readThread(threading.Thread):
 
         #  Socket to talk to server
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.SUB)
-        self.socket.connect("tcp://localhost:5556")
+        self.sub = self.context.socket(zmq.SUB)
+        self.sub.connect("tcp://localhost:5556")
 
         # Set socket options to subscribe
         zip_filter = "1"
-        self.socket.setsockopt_string(zmq.SUBSCRIBE, zip_filter)
+        self.sub.setsockopt_string(zmq.SUBSCRIBE, zip_filter)
 
     def run(self):
         while True:
-            string = self.socket.recv_string()
+            string = self.sub.recv_string()
             t, ax, ay, az, gx, gy ,gz, mx, my, mz = string.split()
             print("%s %s %s %s %s %s %s %s %s" % (ax, ay, az, gx, gy ,gz, mx, my, mz))
 

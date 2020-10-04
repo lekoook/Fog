@@ -10,8 +10,8 @@ from random import randrange
 
 
 context = zmq.Context()
-socket = context.socket(zmq.PUB)
-socket.bind("tcp://*:5556")
+pub = context.socket(zmq.PUB)
+pub.bind("tcp://*:5556")
 
 while True:
     ax = randrange(1, 100)
@@ -25,6 +25,6 @@ while True:
     mz = randrange(1, 100)
 
     print("sending %i %i %i %i %i %i %i %i %i" % (ax, ay, az, gx, gy ,gz, mx, my, mz))
-    socket.send_string("1 %i %i %i %i %i %i %i %i %i" % (ax, ay, az, gx, gy ,gz, mx, my, mz))
+    pub.send_string("1 %i %i %i %i %i %i %i %i %i" % (ax, ay, az, gx, gy ,gz, mx, my, mz))
 
     time.sleep(0.020) # 50hz
