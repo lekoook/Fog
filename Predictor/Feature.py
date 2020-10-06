@@ -32,7 +32,7 @@ class ReadIMUTh(threading.Thread):
 
         self.buffer = buffer
 
-        #  Socket to talk to server
+        #  Socket to talk to publisher
         self.context = zmq.Context()
         self.sub = self.context.socket(zmq.SUB)
         self.sub.connect(subAddr)
