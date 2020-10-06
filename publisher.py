@@ -6,12 +6,15 @@
 
 import time
 import zmq
+import sys
+sys.path.append("..")
+import config
 from random import randrange
 
 
 context = zmq.Context()
 pub = context.socket(zmq.PUB)
-pub.bind("tcp://*:5556")
+pub.bind(config.DATA_SOCK)
 
 while True:
     ax = randrange(1, 100)
@@ -25,6 +28,6 @@ while True:
     mz = randrange(1, 100)
 
     print("sending %i %i %i %i %i %i %i %i %i" % (ax, ay, az, gx, gy ,gz, mx, my, mz))
-    pub.send_string("1 %i %i %i %i %i %i %i %i %i" % (ax, ay, az, gx, gy ,gz, mx, my, mz))
+    pub.send_string("%s %i %i %i %i %i %i %i %i %i" % (config.IMU_TOPIC, ax, ay, az, gx, gy ,gz, mx, my, mz))
 
     time.sleep(0.020) # 50hz
