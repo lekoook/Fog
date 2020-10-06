@@ -32,8 +32,7 @@ class readThread(threading.Thread):
         self.sub.connect("tcp://localhost:5556")
 
         # Set socket options to subscribe
-        zip_filter = "1"
-        self.sub.setsockopt_string(zmq.SUBSCRIBE, zip_filter)
+        self.sub.setsockopt_string(zmq.SUBSCRIBE, "imu")
 
     def run(self):
         while True:
