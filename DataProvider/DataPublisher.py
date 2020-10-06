@@ -5,8 +5,9 @@ import time
 import sys
 sys.path.append("..")
 import config
-from lib.lsm6ds33 import LSM6DS33
-from lib.lis3mdl import LIS3MDL
+from DataProvider.lib.lsm6ds33 import LSM6DS33
+from DataProvider.lib.lis3mdl import LIS3MDL
+from DataProvider.lib.MedianFilter import MedianFilter
 
 def setupPub(pubAddr: str) -> zmq.Socket:
     context = zmq.Context()
@@ -22,12 +23,34 @@ def pubData(publisher: zmq.Socket, topic: str):
     mag = LIS3MDL()
     mag.enableLIS()
 
+    # Median Filters
+    axF = MedianFilter(config.MF_WINDOW_SIZE)
+    ayF = MedianFilter(config.MF_WINDOW_SIZE)
+    azF = MedianFilter(config.MF_WINDOW_SIZE)
+    gxF = MedianFilter(config.MF_WINDOW_SIZE)
+    gyF = MedianFilter(config.MF_WINDOW_SIZE)
+    gzF = MedianFilter(config.MF_WINDOW_SIZE)
+    mxF = MedianFilter(config.MF_WINDOW_SIZE)
+    myF = MedianFilter(config.MF_WINDOW_SIZE)
+    mzF = MedianFilter(config.MF_WINDOW_SIZE)
+
     while True:
         try:
             # Read IMU values
             ax, ay, az = accGyro.getAccelerometerRaw()
             gx, gy, gz = accGyro.getGyroscopeRaw()
             mx, my, mz = mag.getMagnetometerRaw()
+
+            # Go through median filters
+            ax = int(axF.filt(ax))
+            ay = int(ayF.filt(ay))
+            az = int(azF.filt(az))
+            gx = int(gxF.filt(gx))
+            gy = int(gyF.filt(gy))
+            gz = int(gzF.filt(gz))
+            mx = int(mxF.filt(mx))
+            my = int(myF.filt(my))
+            mz = int(mzF.filt(mz))
 
             # Publish onto topic
             publisher.send_string("%s %i %i %i %i %i %i %i %i %i" % (topic, ax, ay, az, gx, gy ,gz, mx, my, mz))
