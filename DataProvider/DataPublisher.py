@@ -7,6 +7,8 @@ import sys
 import logging
 import csv
 import os
+import glob
+import pandas as pd
 sys.path.append("..")
 import config
 from DataProvider.lib.lsm6ds33 import LSM6DS33
@@ -76,7 +78,24 @@ def pubData(publisher: zmq.Socket, topic: str):
             break
 
 def pubMock(publisher: zmq.Socket, topic: str, filePath: str):
-    stream = open(filePath, newline='')
+    #set working directory
+    os.chdir(config.MOCK_DATA_FOLDER)
+    
+    #find all csv files in the folder
+    all_filenames = []
+    dir_files = os.listdir()
+    for f in config.MOCK_DATA_PATHS:
+        if f in dir_files:
+            all_filenames.append(f)
+    print(all_filenames)
+
+    #combine all files in the list
+    combined_csv = pd.concat([pd.read_csv(f, header=None) for f in all_filenames ])
+    #export to csv
+    if os.path.isfile("combined.csv"):
+        os.remove("combined.csv")
+    combined_csv.to_csv("combined.csv", index=False, encoding='utf-8-sig', header=None)
+    stream = open("combined.csv", newline='')
     csvFile = csv.reader(stream, delimiter=',')
 
     if config.USE_MEDIAN_FILTER:
@@ -91,7 +110,6 @@ def pubMock(publisher: zmq.Socket, topic: str, filePath: str):
         myF = MedianFilter(config.MF_WINDOW_SIZE)
         mzF = MedianFilter(config.MF_WINDOW_SIZE)
 
-    next(csvFile) # Skip the first row which is header texts.
     while True:
         try:
             # Read IMU values
@@ -126,12 +144,15 @@ def pubMock(publisher: zmq.Socket, topic: str, filePath: str):
         except (KeyboardInterrupt, StopIteration) as e:
             break
 
+    # Clean up
+    os.remove("combined.csv")
+
 if __name__ == "__main__":
     setupLog()
     publisher = setupPub(config.DATA_SOCK)
     if config.USE_MOCK_DATA:
         logging.info("Using MOCK data")
-        pubMock(publisher, config.IMU_TOPIC, config.MOCK_DATA_PATH)
+        pubMock(publisher, config.IMU_TOPIC, config.MOCK_DATA_PATHS)
     else:
         logging.info("Using REAL data")
         pubData(publisher, config.IMU_TOPIC)
