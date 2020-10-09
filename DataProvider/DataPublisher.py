@@ -36,16 +36,17 @@ def pubData(publisher: zmq.Socket, topic: str):
     mag = LIS3MDL()
     mag.enableLIS()
 
-    # Median Filters
-    axF = MedianFilter(config.MF_WINDOW_SIZE)
-    ayF = MedianFilter(config.MF_WINDOW_SIZE)
-    azF = MedianFilter(config.MF_WINDOW_SIZE)
-    gxF = MedianFilter(config.MF_WINDOW_SIZE)
-    gyF = MedianFilter(config.MF_WINDOW_SIZE)
-    gzF = MedianFilter(config.MF_WINDOW_SIZE)
-    mxF = MedianFilter(config.MF_WINDOW_SIZE)
-    myF = MedianFilter(config.MF_WINDOW_SIZE)
-    mzF = MedianFilter(config.MF_WINDOW_SIZE)
+    if config.USE_MEDIAN_FILTER:
+        # Median Filters
+        axF = MedianFilter(config.MF_WINDOW_SIZE)
+        ayF = MedianFilter(config.MF_WINDOW_SIZE)
+        azF = MedianFilter(config.MF_WINDOW_SIZE)
+        gxF = MedianFilter(config.MF_WINDOW_SIZE)
+        gyF = MedianFilter(config.MF_WINDOW_SIZE)
+        gzF = MedianFilter(config.MF_WINDOW_SIZE)
+        mxF = MedianFilter(config.MF_WINDOW_SIZE)
+        myF = MedianFilter(config.MF_WINDOW_SIZE)
+        mzF = MedianFilter(config.MF_WINDOW_SIZE)
 
     while True:
         try:
@@ -54,16 +55,17 @@ def pubData(publisher: zmq.Socket, topic: str):
             gx, gy, gz = accGyro.getGyroscopeRaw()
             mx, my, mz = mag.getMagnetometerRaw()
 
-            # Go through median filters
-            ax = int(axF.filt(ax))
-            ay = int(ayF.filt(ay))
-            az = int(azF.filt(az))
-            gx = int(gxF.filt(gx))
-            gy = int(gyF.filt(gy))
-            gz = int(gzF.filt(gz))
-            mx = int(mxF.filt(mx))
-            my = int(myF.filt(my))
-            mz = int(mzF.filt(mz))
+            if config.USE_MEDIAN_FILTER:
+                # Go through median filters
+                ax = int(axF.filt(ax))
+                ay = int(ayF.filt(ay))
+                az = int(azF.filt(az))
+                gx = int(gxF.filt(gx))
+                gy = int(gyF.filt(gy))
+                gz = int(gzF.filt(gz))
+                mx = int(mxF.filt(mx))
+                my = int(myF.filt(my))
+                mz = int(mzF.filt(mz))
 
             # Publish onto topic
             publisher.send_string("%s %i %i %i %i %i %i %i %i %i" % (topic, ax, ay, az, gx, gy ,gz, mx, my, mz))
@@ -77,16 +79,17 @@ def pubMock(publisher: zmq.Socket, topic: str, filePath: str):
     stream = open(filePath, newline='')
     csvFile = csv.reader(stream, delimiter=',')
 
-    # Median Filters
-    axF = MedianFilter(config.MF_WINDOW_SIZE)
-    ayF = MedianFilter(config.MF_WINDOW_SIZE)
-    azF = MedianFilter(config.MF_WINDOW_SIZE)
-    gxF = MedianFilter(config.MF_WINDOW_SIZE)
-    gyF = MedianFilter(config.MF_WINDOW_SIZE)
-    gzF = MedianFilter(config.MF_WINDOW_SIZE)
-    mxF = MedianFilter(config.MF_WINDOW_SIZE)
-    myF = MedianFilter(config.MF_WINDOW_SIZE)
-    mzF = MedianFilter(config.MF_WINDOW_SIZE)
+    if config.USE_MEDIAN_FILTER:
+        # Median Filters
+        axF = MedianFilter(config.MF_WINDOW_SIZE)
+        ayF = MedianFilter(config.MF_WINDOW_SIZE)
+        azF = MedianFilter(config.MF_WINDOW_SIZE)
+        gxF = MedianFilter(config.MF_WINDOW_SIZE)
+        gyF = MedianFilter(config.MF_WINDOW_SIZE)
+        gzF = MedianFilter(config.MF_WINDOW_SIZE)
+        mxF = MedianFilter(config.MF_WINDOW_SIZE)
+        myF = MedianFilter(config.MF_WINDOW_SIZE)
+        mzF = MedianFilter(config.MF_WINDOW_SIZE)
 
     next(csvFile) # Skip the first row which is header texts.
     while True:
@@ -103,16 +106,17 @@ def pubMock(publisher: zmq.Socket, topic: str, filePath: str):
             my = float(r[8])
             mz = float(r[9])
 
-            # Go through median filters
-            ax = int(axF.filt(ax))
-            ay = int(ayF.filt(ay))
-            az = int(azF.filt(az))
-            gx = int(gxF.filt(gx))
-            gy = int(gyF.filt(gy))
-            gz = int(gzF.filt(gz))
-            mx = int(mxF.filt(mx))
-            my = int(myF.filt(my))
-            mz = int(mzF.filt(mz))
+            if config.USE_MEDIAN_FILTER:
+                # Go through median filters
+                ax = int(axF.filt(ax))
+                ay = int(ayF.filt(ay))
+                az = int(azF.filt(az))
+                gx = int(gxF.filt(gx))
+                gy = int(gyF.filt(gy))
+                gz = int(gzF.filt(gz))
+                mx = int(mxF.filt(mx))
+                my = int(myF.filt(my))
+                mz = int(mzF.filt(mz))
 
             # Publish onto topic
             publisher.send_string("%s %i %i %i %i %i %i %i %i %i" % (topic, ax, ay, az, gx, gy ,gz, mx, my, mz))
