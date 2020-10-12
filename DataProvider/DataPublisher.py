@@ -90,6 +90,8 @@ def pubMock(publisher: zmq.Socket, topic: str, filePath: str):
     print(all_filenames)
 
     #combine all files in the list
+    ## Note: Xavier the dataset files all have header so will need to account for that. I removed the header in the
+    ## test data in mock_data to test first
     combined_csv = pd.concat([pd.read_csv(f, header=None) for f in all_filenames ])
     #export to csv
     if os.path.isfile("combined.csv"):
