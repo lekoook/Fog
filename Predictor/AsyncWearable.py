@@ -17,9 +17,10 @@ import time
 import numpy as np
 import pandas as pd
 
-import utils
+import lib.utils as utils
+#import utils
 import config
-from constants import *
+from lib.constants import *
 
 # Constants
 Win_Size = config.WIN_SIZE
@@ -68,9 +69,9 @@ class detectionThread(threading.Thread):
         self.window = []
         self.cadence = []
         if clf == "LDA":
-            self.clf = load('/home/pi/Fog-master/Predictor/lda_all.joblib')
+            self.clf = load('/home/pi/Fog-master/Predictor/lib/lda_all.joblib')
         else :
-            self.clf = load('/home/pi/Fog-master/Predictor/rf_all.joblib')
+            self.clf = load('/home/pi/Fog-master/Predictor/lib/rf_all.joblib')
         
     def run(self):
         t = time.time()
