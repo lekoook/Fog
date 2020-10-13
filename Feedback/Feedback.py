@@ -75,14 +75,17 @@ class BlinkTh(threading.Thread):
         global isFog
 
         while not self.shutdown.isSet():
-            if isFog:
+            if isFog and not GPIO.input(self.LED_PIN):
                 # Turn LED for 1 second and turn off again.
                 GPIO.output(self.LED_PIN, GPIO.HIGH)
                 print("On")
                 time.sleep(1)
-            else:
+            
+            if not isFog and GPIO.input(self.LED_PIN):
                 GPIO.output(self.LED_PIN, GPIO.LOW)
                 print("Off")
+
+            time.sleep(0.1)
 
 if __name__ == "__main__":
     try:
