@@ -1,6 +1,6 @@
 #!/bin/usr/python3
 
-import RPi.GPIO
+import RPi.GPIO as GPIO
 import zmq
 import threading
 import time
@@ -68,8 +68,8 @@ class BlinkTh(threading.Thread):
         threading.Thread.__init__(self)
         self.shutdown = threading.Event()
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(LED_PIN, GPIO.OUT) 
-        GPIO.output(LED_PIN, GPIO.LOw)
+        GPIO.setup(self.LED_PIN, GPIO.OUT) 
+        GPIO.output(self.LED_PIN, GPIO.LOw)
 
     def run(self):
         global isFog
@@ -77,13 +77,12 @@ class BlinkTh(threading.Thread):
         while not self.shutdown.isSet():
             if isFog:
                 # Turn LED for 1 second and turn off again.
-                GPIO.output(LED_PIN, GPIO.HIGH)
+                GPIO.output(self.LED_PIN, GPIO.HIGH)
                 print("On")
                 time.sleep(1)
-                GPIO.output(LED_PIN, GPIO.LOW)
+            else:
+                GPIO.output(self.LED_PIN, GPIO.LOW)
                 print("Off")
-                isFog = False # Reset the flag.
-                pass
 
 if __name__ == "__main__":
     try:
