@@ -6,34 +6,41 @@
 from time import sleep
 from time import time
 from joblib import load
-#from constants import *
 from queue import Queue
+from scipy import signal
 
 import time
-import utils
-import numpy as np
-import pandas as pd
-
 import sys
 import zmq
 import threading
 import time
+import numpy as np
+import pandas as pd
+
+import utils
+import config
+from constants import *
 
 # Constants
-LEFT_ACCX_INDEX = 0
-LEFT_ACCZ_INDEX = 2
-WIN_SIZE = 100
-SAMPLE_RATE = 50
-TEST_RATE = 10
-STEP_SIZE = SAMPLE_RATE / TEST_RATE
-# Thresholds for Freezing Index in Hz
-LB_LOW = 0.5 # Lower bound of locomotion band index
-LB_HIGH = 3 # Upper bound of locomotion band index
-FB_LOW = 3 # Lower bound of freeze band index
-FB_HIGH = 8 # Upper bound of freeze band index
+Win_Size = config.WIN_SIZE
+Test_Rate = config.TEST_RATE
+Sample_Rate = config.SAMPLE_RATE
+STEP_SIZE = int(Sample_Rate / Test_Rate)
+
+#Bandpass Filter Constants
+fs = 1000
+lp = 1/(0.5*fs)
+hp = 12/(0.5*fs)
 
 #Data Buffer for incoming sensor data
 buffer = Queue()
+
+def setupPub(pubAddr: str) -> zmq.Socket:
+    context = zmq.Context()
+    publisher = context.socket(zmq.PUB)
+    publisher.bind(pubAddr)
+
+    return publisher
 
 class readThread(threading.Thread):
     def __init__(self):  
@@ -59,6 +66,7 @@ class detectionThread(threading.Thread):
     def __init__(self, clf):
         threading.Thread.__init__(self)
         self.window = []
+        self.cadence = []
         if clf == "LDA":
             self.clf = load('/home/pi/Fog-master/Predictor/lda_all.joblib')
         else :
@@ -66,32 +74,46 @@ class detectionThread(threading.Thread):
         
     def run(self):
         t = time.time()
+        publisher = setupPub(config.DATA_SOCK)
+        sos = signal.butter(1, [lp,hp], 'bandpass',  output='sos')
+        Prev_Peak = 0
         while True:
             if time.time() >= t and buffer.qsize() >= STEP_SIZE:
-                for i in range(int(STEP_SIZE)+1):
-                    ax, ay, az, gx, gy ,gz, mx, my, mz = buffer.get() #need to confirm of subscriber parses as string or value
+                #Updating window with new values
+                for i in range(STEP_SIZE):
+                    ax, ay, az, gx, gy ,gz, mx, my, mz = buffer.get()
                     self.window.append([float(ax),float(ay),float(az)])
-                #print(len(self.window))
-                    #print("%s %s %s %s %s %s %s %s %s" % (ax, ay, az, gx, gy ,gz, mx, my, mz))
-                if len(self.window) >= WIN_SIZE:
+                    self.cadence.append(float(az))
+                #Running Prediction
+                if len(self.window) >= Win_Size:
                     track = time.time()
+                    #Cadence Tracking
+                    filtered_data = signal.sosfilt(sos, self.cadence)
+                    Peaks, properties = signal.find_peaks(filtered_data)
+                    slope = (len(Peaks) - Prev_Peak)/2
+                    Prev_Peak = len(Peaks)
+                    #Feature Extraction Step 
                     features_window = []
                     sample = np.empty(shape=(1, 3))
-                    #Feature Extraction Step 
-                    features_window.append(utils.extract_rms(self.window, LEFT_ACCZ_INDEX))
-                    features_window.append(utils.extract_std(self.window, LEFT_ACCZ_INDEX))
-                    features_window.append(utils.extract_fi_one_side(self.window, LEFT_ACCX_INDEX, LB_LOW , LB_HIGH, FB_LOW, FB_HIGH))
+                    features_window.append(utils.extract_rms(self.window, 2))
+                    features_window.append(utils.extract_std(self.window, 2))
+                    features_window.append(utils.extract_fi_one_side(self.window, 0, LB_LOW , LB_HIGH, FB_LOW, FB_HIGH))
                     #FoG detection Step
                     sample[0] = np.array(features_window)
                     predicted_label = self.clf.predict(sample)
-                    elapse = time.time() - track 
-                    print("Time Taken:", elapse) 
-                    print(predicted_label)
-                    print("FoG Prediction:", "FoG" if predicted_label else "No FoG")
+                    
+                    #Print Prediction output
+                    print("Time Taken:", time.time() - track) 
+                    print("Cadence Slope:", slope)
+                    #print(predicted_label[0])
+                    print("FoG Prediction:", "FoG\n" if predicted_label else "No FoG\n")
+                    #Publishing FoG Prediction 
+                    publisher.send_string("%s %i" % (config.IMU_TOPIC, predicted_label[0]))
                     #Next Window Preparation Step
-                    del self.window[:10]
+                    del self.window[:STEP_SIZE]
+                    del self.cadence[:STEP_SIZE]
 
-                t += (1/TEST_RATE) #add 100ms for 10Hz detection rate
+                t += (1/Test_Rate) #add 100ms for 10Hz detection rate
 
                 
                 
