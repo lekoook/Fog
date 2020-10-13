@@ -13,3 +13,7 @@ LOG_FILE_PREFIX     = LOG_FOLDER + "dp_log_"
 # DataProvider filters
 USE_MEDIAN_FILTER   = True
 MF_WINDOW_SIZE      = 3
+
+# Predictor
+PREDICT_SOCK        = "tcp://127.0.0.1:5556"
+PREDICT_TOPIC       = "ps"
