@@ -69,7 +69,7 @@ class BlinkTh(threading.Thread):
         self.shutdown = threading.Event()
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.LED_PIN, GPIO.OUT) 
-        GPIO.output(self.LED_PIN, GPIO.LOw)
+        GPIO.output(self.LED_PIN, GPIO.LOW)
 
     def run(self):
         global isFog
