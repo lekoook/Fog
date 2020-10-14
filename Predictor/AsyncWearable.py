@@ -47,6 +47,7 @@ def setupPub(pubAddr: str) -> zmq.Socket:
 class readThread(threading.Thread):
     def __init__(self, sockAddr: str, topic: str):  
         threading.Thread.__init__(self)
+        self.shutdown = threading.Event()
 
         #  Socket to talk to server
         self.context = zmq.Context()
@@ -57,7 +58,7 @@ class readThread(threading.Thread):
         self.sub.setsockopt_string(zmq.SUBSCRIBE, topic)
 
     def run(self):
-        while True:
+        while not self.shutdown.isSet():
             string = self.sub.recv_string() 
             t, ax, ay, az, gx, gy ,gz, mx, my, mz = string.split()
             buffer.put((ax, ay, az, gx, gy ,gz, mx, my, mz))
@@ -66,6 +67,7 @@ class readThread(threading.Thread):
 class detectionThread(threading.Thread):
     def __init__(self, clf, pubSock: str, pubTopic: str):
         threading.Thread.__init__(self)
+        self.shutdown = threading.Event()
         self.publisher = setupPub(pubSock)
         self.pubTopic = pubTopic
         self.window = []
@@ -80,7 +82,7 @@ class detectionThread(threading.Thread):
         
         sos = signal.butter(1, [lp,hp], 'bandpass',  output='sos')
         Prev_Peak = 0
-        while True:
+        while not self.shutdown.isSet():
             if time.time() >= t and buffer.qsize() >= STEP_SIZE:
                 #Updating window with new values
                 for i in range(STEP_SIZE):
@@ -118,18 +120,33 @@ class detectionThread(threading.Thread):
 
                 t += (1/Test_Rate) #add 100ms for 10Hz detection rate
 
-                
-                
-#Code Main
-print("FoG Detection Started in RF Mode")
-rt = readThread(config.DATA_SOCK, config.IMU_TOPIC)
-dt = detectionThread("LDA", config.PREDICT_SOCK, config.PREDICT_TOPIC)                
-                
-rt.start()
-dt.start()
 
-rt.join()
-dt.join()            
+if __name__ == "__main__":
+    try:
+        print("FoG Detection Started in RF Mode")
+        rt = readThread(config.DATA_SOCK, config.IMU_TOPIC)
+        dt = detectionThread("LDA", config.PREDICT_SOCK, config.PREDICT_TOPIC)                
+        rt.start()
+        dt.start()
+        
+        # Let's keep the main thread running to catch ctrl-c terminations.
+        while threading.activeCount() > 0:
+            time.sleep(0.1)
+    
+    except KeyboardInterrupt:
+        rt.shutdown.set()
+        dt.shutdown.set()
+        rt.join()
+        dt.join()
+
+        # Clean up
+        context = zmq.Context.instance()
+        context.destroy()      
+
+                    
+
+
+
                 
                 
                 
