@@ -22,6 +22,12 @@ To install on `pip3`:
 
 `pip3 install smbus`
 
+### joblib
+### scipy
+### pandas
+### xlrd
+### sklearn
+
 ## Components
 ### DataProvider
 This components aims to read values from the 9-DOF IMU (Inertial Measurement Unit) and publishes them on to a ZMQ socket topic.
