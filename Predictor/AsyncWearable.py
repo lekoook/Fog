@@ -1,3 +1,4 @@
+#!/bin/usr/python3
 
 # Asynchronous Feature Extraction and FoG Detection Module
 # Updated on 11/10/2020
@@ -18,7 +19,6 @@ import numpy as np
 import pandas as pd
 
 import lib.utils as utils
-#import utils
 import config
 from lib.constants import *
 
@@ -57,8 +57,7 @@ class readThread(threading.Thread):
 
     def run(self):
         while True:
-            string = self.sub.recv_string()
-            #print(string) 
+            string = self.sub.recv_string() 
             t, ax, ay, az, gx, gy ,gz, mx, my, mz = string.split()
             buffer.put((ax, ay, az, gx, gy ,gz, mx, my, mz))
 
@@ -66,6 +65,7 @@ class readThread(threading.Thread):
 class detectionThread(threading.Thread):
     def __init__(self, clf):
         threading.Thread.__init__(self)
+        self.publisher = setupPub(config.PREDICT_SOCK)
         self.window = []
         self.cadence = []
         if clf == "LDA":
@@ -75,7 +75,7 @@ class detectionThread(threading.Thread):
         
     def run(self):
         t = time.time()
-        publisher = setupPub(config.DATA_SOCK)
+        
         sos = signal.butter(1, [lp,hp], 'bandpass',  output='sos')
         Prev_Peak = 0
         while True:
@@ -109,7 +109,7 @@ class detectionThread(threading.Thread):
                     #print(predicted_label[0])
                     print("FoG Prediction:", "FoG\n" if predicted_label else "No FoG\n")
                     #Publishing FoG Prediction 
-                    publisher.send_string("%s %i" % (config.IMU_TOPIC, predicted_label[0]))
+                    self.publisher.send_string("%s %i" % (config.PREDICT_TOPIC, predicted_label[0]))
                     #Next Window Preparation Step
                     del self.window[:STEP_SIZE]
                     del self.cadence[:STEP_SIZE]
