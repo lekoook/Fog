@@ -45,16 +45,16 @@ def setupPub(pubAddr: str) -> zmq.Socket:
     return publisher
 
 class readThread(threading.Thread):
-    def __init__(self):  
+    def __init__(self, sockAddr: str, topic: str):  
         threading.Thread.__init__(self)
 
         #  Socket to talk to server
         self.context = zmq.Context()
         self.sub = self.context.socket(zmq.SUB)
-        self.sub.connect("tcp://localhost:5556")
+        self.sub.connect(sockAddr)
 
         # Set socket options to subscribe
-        self.sub.setsockopt_string(zmq.SUBSCRIBE, "imu")
+        self.sub.setsockopt_string(zmq.SUBSCRIBE, topic)
 
     def run(self):
         while True:
@@ -64,9 +64,10 @@ class readThread(threading.Thread):
 
             
 class detectionThread(threading.Thread):
-    def __init__(self, clf):
+    def __init__(self, clf, pubSock: str, pubTopic: str):
         threading.Thread.__init__(self)
-        self.publisher = setupPub(config.PREDICT_SOCK)
+        self.publisher = setupPub(pubSock)
+        self.pubTopic = pubTopic
         self.window = []
         self.cadence = []
         if clf == "LDA":
@@ -110,7 +111,7 @@ class detectionThread(threading.Thread):
                     #print(predicted_label[0])
                     print("FoG Prediction:", "FoG\n" if predicted_label else "No FoG\n")
                     #Publishing FoG Prediction 
-                    self.publisher.send_string("%s %i" % (config.PREDICT_TOPIC, predicted_label[0]))
+                    self.publisher.send_string("%s %i" % (self.pubTopic, predicted_label[0]))
                     #Next Window Preparation Step
                     del self.window[:STEP_SIZE]
                     del self.cadence[:STEP_SIZE]
@@ -121,8 +122,8 @@ class detectionThread(threading.Thread):
                 
 #Code Main
 print("FoG Detection Started in RF Mode")
-rt = readThread()
-dt = detectionThread("LDA")                
+rt = readThread(config.DATA_SOCK, config.IMU_TOPIC)
+dt = detectionThread("LDA", config.PREDICT_SOCK, config.PREDICT_TOPIC)                
                 
 rt.start()
 dt.start()
