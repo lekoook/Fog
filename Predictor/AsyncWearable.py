@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 import lib.utils as utils
+sys.path.append("..")
 import config
 from lib.constants import *
 
