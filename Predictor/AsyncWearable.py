@@ -70,9 +70,9 @@ class detectionThread(threading.Thread):
         self.window = []
         self.cadence = []
         if clf == "LDA":
-            self.clf = load('/home/pi/Fog-master/Predictor/lib/lda_all.joblib')
+            self.clf = load('./lib/lda_all.joblib')
         else :
-            self.clf = load('/home/pi/Fog-master/Predictor/lib/rf_all.joblib')
+            self.clf = load('./lib/rf_all.joblib')
         
     def run(self):
         t = time.time()
@@ -122,7 +122,7 @@ class detectionThread(threading.Thread):
 #Code Main
 print("FoG Detection Started in RF Mode")
 rt = readThread()
-dt = detectionThread("RF")                
+dt = detectionThread("LDA")                
                 
 rt.start()
 dt.start()
