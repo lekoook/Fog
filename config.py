@@ -20,3 +20,5 @@ PREDICT_TOPIC       = "ps"
 WIN_SIZE            = 100
 SAMPLE_RATE         = 50
 TEST_RATE           = 10
+LDA_JOBLIB_PATH     = "./lib/lda_all.joblib"
+RF_JOBLIB_PATH      = "./lib/rf_all.joblib"

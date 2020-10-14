@@ -71,9 +71,9 @@ class detectionThread(threading.Thread):
         self.window = []
         self.cadence = []
         if clf == "LDA":
-            self.clf = load('./lib/lda_all.joblib')
+            self.clf = load(config.LDA_JOBLIB_PATH)
         else :
-            self.clf = load('./lib/rf_all.joblib')
+            self.clf = load(config.RF_JOBLIB_PATH)
         
     def run(self):
         t = time.time()
