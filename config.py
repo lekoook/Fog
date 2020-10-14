@@ -15,5 +15,10 @@ USE_MEDIAN_FILTER   = True
 MF_WINDOW_SIZE      = 3
 
 # Predictor
-PREDICT_SOCK        = "tcp://127.0.0.1:5556"
+
+WIN_SIZE            = 100
+SAMPLE_RATE         = 50
+TEST_RATE           = 10
+
+PREDICT_SOCK        = "tcp://127.0.0.1:5557"
 PREDICT_TOPIC       = "ps"
