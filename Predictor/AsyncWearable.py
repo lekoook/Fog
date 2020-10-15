@@ -28,6 +28,7 @@ Win_Size = config.WIN_SIZE
 Test_Rate = config.TEST_RATE
 Sample_Rate = config.SAMPLE_RATE
 STEP_SIZE = int(Sample_Rate / Test_Rate)
+POLL_TIMEOUT = 100 # milliseconds
 
 #Bandpass Filter Constants
 fs = 1000
@@ -59,10 +60,12 @@ class readThread(threading.Thread):
 
     def run(self):
         while not self.shutdown.isSet():
-            string = self.sub.recv_string() 
-            t, ax, ay, az, gx, gy ,gz, mx, my, mz = string.split()
-            buffer.put((ax, ay, az, gx, gy ,gz, mx, my, mz))
-
+            sockEvents = self.sub.poll(POLL_TIMEOUT, zmq.POLLIN)
+            
+            if (sockEvents & zmq.POLLIN) > 0:
+                string = self.sub.recv_string() 
+                t, ax, ay, az, gx, gy ,gz, mx, my, mz = string.split()
+                buffer.put((ax, ay, az, gx, gy ,gz, mx, my, mz))
             
 class detectionThread(threading.Thread):
     def __init__(self, clf, pubSock: str, pubTopic: str):

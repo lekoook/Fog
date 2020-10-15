@@ -9,6 +9,9 @@ import os
 sys.path.append("..")
 import config
 
+# Constants
+POLL_TIMEOUT = 100 # milliseconds
+
 # State flag to indicate if FoG is occuring.
 isFog = False
 
@@ -45,12 +48,15 @@ class ReadStateTh(threading.Thread):
         global isFog
 
         while not self.shutdown.isSet():
-            string = self.sub.recv_string()
-            t, state = string.split()
-            if state is "0":
-                isFog = False
-            else:
-                isFog = True
+            sockEvents = self.sub.poll(POLL_TIMEOUT, zmq.POLLIN)
+
+            if (sockEvents & zmq.POLLIN) > 0:
+                string = self.sub.recv_string()
+                t, state = string.split()
+                if state is "0":
+                    isFog = False
+                else:
+                    isFog = True
 
         # Clean up
         context = zmq.Context.instance()
