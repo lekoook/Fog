@@ -22,3 +22,7 @@ SAMPLE_RATE         = 50
 TEST_RATE           = 10
 LDA_JOBLIB_PATH     = "./lib/lda_all.joblib"
 RF_JOBLIB_PATH      = "./lib/rf_all.joblib"
+
+# Feedback
+SOUNDS_FOLDER       = "sounds/"
+STOP_SOUND_PATH     = "stop.wav"
