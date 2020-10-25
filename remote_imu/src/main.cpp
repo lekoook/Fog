@@ -23,23 +23,31 @@
 #include "Adafruit_BluefruitLE_SPI.h"
 #include "Adafruit_BluefruitLE_UART.h"
 #include "Adafruit_BLEGatt.h"
-
 #include "BluefruitConfig.h"
+#include "checksum.h"
+
 
 // BLE GATT definitions
 #define IMU_SERVICE 0xABC0
-#define AX_CHAR 0xABC1
-#define AY_CHAR 0xABC2
-#define AZ_CHAR 0xABC3
-#define GX_CHAR 0xABC4
-#define GY_CHAR 0xABC5
-#define GZ_CHAR 0xABC6
-#define MX_CHAR 0xABC7
-#define MY_CHAR 0xABC8
-#define MZ_CHAR 0xABC9
+#define DATA_CHAR 0xABC1
+#define DATA_CHAR_DESC "Data stream"
 #define IMU_SRV_LOW (IMU_SERVICE & 0x00FF)
 #define IMU_SRV_HIGH ((IMU_SERVICE & 0xFF00) >> 8)
+#define DATA_MIN_SIZE 3
+#define DATA_MAX_SIZE 20
 
+// Message definitions
+#define MSG_LEN 38 // Start byte + payload bytes + checksum byte
+#define START_BYTE 0xFF
+
+// Function prototypes
+uint8_t crc8(uint8_t* data, uint8_t len);
+void packData(
+    float ax, float ay, float az, 
+    float gx, float gy, float gz, 
+    float mx, float my, float mz, 
+    uint8_t buffer[MSG_LEN]);
+void sendMsg(int32_t charId, uint8_t msg[], uint16_t size);
 
 // Create the bluefruit object, either software serial...uncomment these lines
 /*
@@ -61,27 +69,12 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 //                             BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 Adafruit_BLEGatt gatt(ble);
-
-// A small helper
-void error(const __FlashStringHelper*err) {
-    Serial.println(err);
-    while (1);
-}
-
 float value = 0;
+uint8_t msgBuf[MSG_LEN] = { 0 };
 
 /* The service information */
 int32_t imuServiceId;
-int32_t axCharId;
-int32_t ayCharId;
-int32_t azCharId;
-int32_t gxCharId;
-int32_t gyCharId;
-int32_t gzCharId;
-int32_t mxCharId;
-int32_t myCharId;
-int32_t mzCharId;
-int32_t notifyCharId;
+int32_t dataCharId;
 
 void setup(void)
 {
@@ -92,7 +85,7 @@ void setup(void)
 
     if ( !ble.begin(VERBOSE_MODE) )
     {
-        error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
+        Serial.println(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
     }
     Serial.println( F("OK!") );
 
@@ -100,7 +93,7 @@ void setup(void)
     Serial.println(F("Performing a factory reset: "));
     if (! ble.factoryReset() )
     {
-        error(F("Couldn't factory reset"));
+        Serial.println(F("Couldn't factory reset"));
     }
 
     /* Disable command echo from Bluefruit */
@@ -116,62 +109,16 @@ void setup(void)
     imuServiceId = gatt.addService(IMU_SERVICE);
     if (imuServiceId == 0) 
     {
-        error(F("Could not add IMU Service"));
+        Serial.println(F("Could not add IMU Service"));
     }
     
     // Add the characteristics for all IMU data
-    Serial.println(F("Adding the IMU data characteristic"));
-    axCharId = gatt.addCharacteristic(AX_CHAR, GATT_CHARS_PROPERTIES_NOTIFY, 4, 4, BLE_DATATYPE_BYTEARRAY, "AX");
-    if (axCharId == 0) 
+    Serial.println(F("Adding the IMU data stream characteristic"));
+    dataCharId = gatt.addCharacteristic(DATA_CHAR, GATT_CHARS_PROPERTIES_NOTIFY, DATA_MIN_SIZE, 
+        DATA_MAX_SIZE, BLE_DATATYPE_BYTEARRAY, DATA_CHAR_DESC);
+    if (dataCharId == 0) 
     {
-        error(F("Could not add AX characteristic"));
-    }
-    ayCharId = gatt.addCharacteristic(AY_CHAR, GATT_CHARS_PROPERTIES_NOTIFY, 4, 4, BLE_DATATYPE_BYTEARRAY, "AY");
-    if (ayCharId == 0) 
-    {
-        error(F("Could not add AY characteristic"));
-    }
-    azCharId = gatt.addCharacteristic(AZ_CHAR, GATT_CHARS_PROPERTIES_READ, 4, 4, BLE_DATATYPE_BYTEARRAY, "AZ");
-    if (azCharId == 0) 
-    {
-        error(F("Could not add AZ characteristic"));
-    }
-    gxCharId = gatt.addCharacteristic(GX_CHAR, GATT_CHARS_PROPERTIES_READ, 4, 4, BLE_DATATYPE_BYTEARRAY, "GX");
-    if (gxCharId == 0) 
-    {
-        error(F("Could not add GX characteristic"));
-    }
-    gyCharId = gatt.addCharacteristic(GY_CHAR, GATT_CHARS_PROPERTIES_READ, 4, 4, BLE_DATATYPE_BYTEARRAY, "GY");
-    if (gyCharId == 0) 
-    {
-        error(F("Could not add GY characteristic"));
-    }
-    gzCharId = gatt.addCharacteristic(GZ_CHAR, GATT_CHARS_PROPERTIES_READ, 4, 4, BLE_DATATYPE_BYTEARRAY, "GZ");
-    if (gzCharId == 0) 
-    {
-        error(F("Could not add GZ characteristic"));
-    }
-    mxCharId = gatt.addCharacteristic(MX_CHAR, GATT_CHARS_PROPERTIES_READ, 4, 4, BLE_DATATYPE_BYTEARRAY, "MX");
-    if (mxCharId == 0) 
-    {
-        error(F("Could not add MX characteristic"));
-    }
-    myCharId = gatt.addCharacteristic(MY_CHAR, GATT_CHARS_PROPERTIES_READ, 4, 4, BLE_DATATYPE_BYTEARRAY, "MY");
-    if (myCharId == 0) 
-    {
-        error(F("Could not add MY characteristic"));
-    }
-    mzCharId = gatt.addCharacteristic(MZ_CHAR, GATT_CHARS_PROPERTIES_READ, 4, 4, BLE_DATATYPE_BYTEARRAY, "MZ");
-    if (mzCharId == 0) 
-    {
-        error(F("Could not add MZ characteristic"));
-    }
-
-    // This characteristic serves as a notifier for clients know that all IMU data is ready.
-    mzCharId = gatt.addCharacteristic(MZ_CHAR, GATT_CHARS_PROPERTIES_READ, 4, 4, BLE_DATATYPE_BYTEARRAY, "MZ");
-    if (mzCharId == 0) 
-    {
-        error(F("Could not add MZ characteristic"));
+        Serial.println(F("Could not add IMU data stream characteristic"));
     }
 
     /* Add the IMU Service to the advertising data */
@@ -189,28 +136,95 @@ void setup(void)
 void loop(void)
 {
     ble.update();
-    uint8_t b[4];
-    memcpy(&b, &value, 4);
-    value++;
-
-    uint8_t ax[4];
-    float axf = 0;
-    memcpy(&ax, &axf, 4);
-    gatt.setChar(axCharId, ax, 4);
-    
-    uint8_t ay[4];
-    float ayf = 1;
-    memcpy(&ay, &ayf, 4);
-    gatt.setChar(ayCharId, ay, 4);
-
-    gatt.setChar(azCharId, b, 4);
-    gatt.setChar(gxCharId, b, 4);
-    gatt.setChar(gyCharId, b, 4);
-    gatt.setChar(gzCharId, b, 4);
-    gatt.setChar(mxCharId, b, 4);
-    gatt.setChar(myCharId, b, 4);
-    gatt.setChar(mzCharId, b, 4);
+    Serial.println(ble.availableForWrite());
+    packData(1, 2, 3, 4, 5, 6, 7, 8, 9, msgBuf);
+    sendMsg(dataCharId, msgBuf, MSG_LEN);
 
     /* Delay before next measurement update */
-    delay(1000);
+    delay(20);
+}
+
+/**
+ * @brief Calculates a 8-bits width CRC byte given some bytes data.
+ * 
+ * @details Code taken from: https://stackoverflow.com/questions/51731313/cross-platform-crc8-function-c-and-python-parity-check 
+ * Credited to: "Triz"
+ * 
+ * @param data Bytes array to calculate CRC from.
+ * @param len Number of bytes in array.
+ * @return uint8_t Calculated CRC byte.
+ */
+uint8_t crc8(uint8_t* data, uint8_t len)
+{
+    uint8_t crc=0;
+    for (uint8_t i=0; i<len;i++)
+    {
+        uint8_t inbyte = data[i];
+        for (uint8_t j=0;j<8;j++)
+        {
+            uint8_t mix = (crc ^ inbyte) & 0x01;
+            crc >>= 1;
+            if (mix)
+            {
+            crc ^= 0x8C;
+            } 
+            inbyte >>= 1;
+        }
+    }
+   return crc;
+}
+
+/**
+ * @brief Packs all data fields into the given buffer.
+ * 
+ * @param ax X-axis acceleration.
+ * @param ay Y-axis acceleration.
+ * @param az Z-axis acceleration.
+ * @param gx X-axis angular velocity.
+ * @param gy Y-axis angular velocity.
+ * @param gz Z-axis angular velocity.
+ * @param mx X-axis gauss.
+ * @param my Y-axis gauss.
+ * @param mz Z-axis gauss.
+ * @param buffer Buffer to store packed data.
+ */
+void packData(
+    float ax, float ay, float az, 
+    float gx, float gy, float gz, 
+    float mx, float my, float mz, 
+    uint8_t buffer[MSG_LEN])
+{
+    buffer[0] = START_BYTE;
+
+    // Data fields
+    memcpy(&buffer[1], &ax, 4);
+    memcpy(&buffer[5], &ay, 4);
+    memcpy(&buffer[9], &az, 4);
+    memcpy(&buffer[13], &gx, 4);
+    memcpy(&buffer[17], &gy, 4);
+    memcpy(&buffer[21], &gz, 4);
+    memcpy(&buffer[25], &mx, 4);
+    memcpy(&buffer[29], &my, 4);
+    memcpy(&buffer[33], &mz, 4);
+
+    // Generate CRC, we do not include the CRC byte place.
+    buffer[37] = crc8(buffer, MSG_LEN-1);
+}
+
+/**
+ * @brief Sends the given message out via a characteristic. Message will be fragmented if the total size is larger than the max allowable characteristic field size.
+ * 
+ * @param charId Charactertistic ID to send via.
+ * @param msg Message to send.
+ * @param size Length of message in bytes.
+ */
+void sendMsg(int32_t charId, uint8_t msg[], uint16_t size)
+{
+    int16_t idx = 0;
+    while (idx + DATA_MAX_SIZE < size)
+    {
+        gatt.setChar(charId, &msg[idx], DATA_MAX_SIZE);
+        idx += DATA_MAX_SIZE;
+    }
+    gatt.setChar(charId, &msg[idx], size - idx);
 }
