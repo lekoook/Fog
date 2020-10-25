@@ -1,8 +1,12 @@
+#!/bin/usr/python3
 from bluepy.btle import *
 from queue import Queue, Empty
 import threading
 import builtins
 import traceback
+import sys
+sys.path.append("..")
+from DataProvider.lib.crc8 import crc8
 
 # User Configurations
 FEATHER_NAME = "Adafruit Bluefruit LE"
@@ -90,7 +94,9 @@ class NotificationHandler(DefaultDelegate):
         Args:
             msg (bytes): Message to extract data from.
         """
-        #TODO: Do CRC check.
+        crc = crc8(msg[:MSG_LEN-1])
+        if crc != msg[MSG_LEN-1]:
+            return # Error in bytes, disregard this data set
 
         values = []
         # Disregard the START_BYTE
