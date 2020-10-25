@@ -69,7 +69,6 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 //                             BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 Adafruit_BLEGatt gatt(ble);
-float value = 0;
 uint8_t msgBuf[MSG_LEN] = { 0 };
 
 /* The service information */
@@ -136,7 +135,6 @@ void setup(void)
 void loop(void)
 {
     ble.update();
-    Serial.println(ble.availableForWrite());
     packData(1, 2, 3, 4, 5, 6, 7, 8, 9, msgBuf);
     sendMsg(dataCharId, msgBuf, MSG_LEN);
 
