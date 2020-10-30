@@ -253,7 +253,7 @@ class PublishThread(threading.Thread):
         while not self.shutdown.isSet():
             value = self.notifHandler.getValue()
             if value is not None:
-                s = "%s %i %i %i %i %i %i %i %i %i" % (self.pubTopic, value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                s = "%s %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f" % (self.pubTopic, value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
                 self.publisher.send_string(s)
                 self.print(s)
 
