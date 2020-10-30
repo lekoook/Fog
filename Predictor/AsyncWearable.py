@@ -127,7 +127,7 @@ class detectionThread(threading.Thread):
 if __name__ == "__main__":
     try:
         print("FoG Detection Started in RF Mode")
-        rt = readThread(config.DATA_SOCK, config.IMU_TOPIC)
+        rt = readThread(config.DATA_SOCK, config.LOCAL_IMU_TOPIC)
         dt = detectionThread("LDA", config.PREDICT_SOCK, config.PREDICT_TOPIC)                
         rt.start()
         dt.start()

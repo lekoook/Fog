@@ -1,11 +1,13 @@
 #!/bin/usr/python3
 from bluepy.btle import *
 from queue import Queue, Empty
+import zmq
 import threading
 import builtins
 import traceback
 import sys
 sys.path.append("..")
+import config
 from DataProvider.lib.crc8 import crc8
 
 # User Configurations
@@ -226,14 +228,19 @@ class ReceiveThread(threading.Thread):
         builtins.print(self.printPrefix, *objs, **kwargs)
 
 class PublishThread(threading.Thread):
-    def __init__(self, notifHandler: NotificationHandler):
+    def __init__(self, notifHandler: NotificationHandler, publishAddr: str, pubTopic: str):
         threading.Thread.__init__(self)
         self.shutdown = threading.Event()
         self.bleConnected = threading.Event()
         self.notifHandler = notifHandler
         self.printPrefix = "[" + self.__class__.__name__ + "]:\t"
+        self.pubAddr = publishAddr
+        self.pubTopic = pubTopic
+        self.publisher = None
 
     def run(self):
+        self.setupPub()
+
         # Don't do anything until the BLE has connected successfully.
         connected = False
         self.print("Waiting for BLE")
@@ -246,7 +253,15 @@ class PublishThread(threading.Thread):
         while not self.shutdown.isSet():
             value = self.notifHandler.getValue()
             if value is not None:
-                self.print(value)
+                s = "%s %i %i %i %i %i %i %i %i %i" % (self.pubTopic, value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                self.publisher.send_string(s)
+                self.print(s)
+
+    def setupPub(self):
+        self.print("Setting up publisher to:", self.pubAddr)
+        context = zmq.Context()
+        self.publisher = context.socket(zmq.PUB)
+        self.publisher.bind(self.pubAddr)
 
     def print(self, *objs, **kwargs):
         builtins.print(self.printPrefix, *objs, **kwargs)
@@ -255,7 +270,7 @@ if __name__ == "__main__":
     notifHandler = NotificationHandler()
 
     try:
-        pubData = PublishThread(notifHandler)
+        pubData = PublishThread(notifHandler, config.DATA_SOCK, config.REMOTE_IMU_TOPIC)
         pubData.start()
         recvData = ReceiveThread(notifHandler, pubData.bleConnected)
         recvData.start()

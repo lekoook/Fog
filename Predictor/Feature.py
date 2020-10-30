@@ -85,7 +85,7 @@ class ReadBufferTh(threading.Thread):
 
 if __name__ == "__main__":
     try:
-        readImu = ReadIMUTh(config.DATA_SOCK, config.IMU_TOPIC, dataBuffer)
+        readImu = ReadIMUTh(config.DATA_SOCK, config.LOCAL_IMU_TOPIC, dataBuffer)
         readBuf = ReadBufferTh(dataBuffer)
         readImu.start()
         readBuf.start()

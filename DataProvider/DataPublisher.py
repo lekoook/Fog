@@ -154,10 +154,10 @@ if __name__ == "__main__":
     publisher = setupPub(config.DATA_SOCK)
     if config.USE_MOCK_DATA:
         logging.info("Using MOCK data")
-        pubMock(publisher, config.IMU_TOPIC, config.MOCK_DATA_PATHS)
+        pubMock(publisher, config.LOCAL_IMU_TOPIC, config.MOCK_DATA_PATHS)
     else:
         logging.info("Using REAL data")
-        pubData(publisher, config.IMU_TOPIC)
+        pubData(publisher, config.LOCAL_IMU_TOPIC)
 
     # Clean up
     context = zmq.Context.instance()

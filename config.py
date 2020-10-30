@@ -2,7 +2,8 @@
 
 # DataProvider
 DATA_SOCK           = "tcp://127.0.0.1:5556"
-IMU_TOPIC           = "imu"
+LOCAL_IMU_TOPIC     = "local_imu"
+REMOTE_IMU_TOPIC    = "remote_imu"
 USE_MOCK_DATA       = True # Set to False to read and use actual IMU data.
 MOCK_DATA_FOLDER    = "mock_data"
 MOCK_DATA_PATHS     = [
