@@ -28,6 +28,8 @@
 #include <Wire.h>
 #include "LSM6.h"
 #include "LIS3MDL.h"
+#include "IMUValue.h"
+#include "IMUMedianFilter.h"
 
 // BLE GATT definitions
 #define IMU_SERVICE 0xABC0
@@ -43,18 +45,13 @@
 #define START_BYTE 0xFF
 #define SAMPLE_RATE 50
 
-// IMU definitions
-#define G_ACCEL 9.80665
-#define ACC_SENS 2.0 // +-2G
-#define GYRO_SENS 245.0 // +-245DPS
-#define MAG_SENS 4.0 // +-4Gauss
+// Median filter definitions
+#define MED_FILT_WIN_SIZE 11
 
 LSM6 lsm6;
-const double ACCEL_CONST = ACC_SENS * G_ACCEL / (2 << 14);
-const double GYRO_CONST = GYRO_SENS / (2 << 14);
 LIS3MDL lis3mdl;
-const double MAG_CONST = MAG_SENS / (2 << 14);
 const uint16_t sampIntv = 1000 / SAMPLE_RATE; // In ms
+IMUMedianFilter<MED_FILT_WIN_SIZE> medianFilt;
 
 // Function prototypes
 uint8_t crc8(uint8_t* data, uint8_t len);
@@ -64,7 +61,7 @@ void packData(
     float mx, float my, float mz, 
     uint8_t buffer[MSG_LEN]);
 void sendMsg(int32_t charId, uint8_t msg[], uint16_t size);
-void getImuValues(LSM6::vector<float> &accel, LSM6::vector<float> &gyro, LIS3MDL::vector<float> &mag);
+IMUValue getImuValues();
 
 // Create the bluefruit object, either software serial...uncomment these lines
 /*
@@ -171,13 +168,14 @@ void loop(void)
     ble.update();
 
     // Get LSM6 data.
-    LSM6::vector<float> accel;
-    LSM6::vector<float> gyro;
-    LIS3MDL::vector<float> mag;
-    getImuValues(accel, gyro, mag);
+    IMUValue v = getImuValues();
+    v = medianFilt.filter(v);
 
     // Publish on characteristics.
-    packData(accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z, mag.x, mag.y, mag.z, msgBuf);
+    VectorFloat a = v.getAccelMs2();
+    VectorFloat g = v.getGyroDegSec();
+    VectorFloat m = v.getGauss();
+    packData(a.x, a.y, a.z, g.x, g.y, g.z, m.x, m.y, m.z, msgBuf);
     sendMsg(dataCharId, msgBuf, MSG_LEN);
 
     /* Delay before next measurement update */
@@ -269,20 +267,22 @@ void sendMsg(int32_t charId, uint8_t msg[], uint16_t size)
     gatt.setChar(charId, &msg[idx], size - idx);
 }
 
-void getImuValues(LSM6::vector<float> &accel, LSM6::vector<float> &gyro, LIS3MDL::vector<float> &mag)
+IMUValue getImuValues()
 {
     lsm6.read();
     lis3mdl.read();
     LSM6::vector<int16_t> acc = lsm6.a;
     LSM6::vector<int16_t> gyr = lsm6.g;
     LIS3MDL::vector<int16_t> magn = lis3mdl.m;
-    accel.x = acc.x * ACCEL_CONST;
-    accel.y = acc.y * ACCEL_CONST;
-    accel.z = acc.z * ACCEL_CONST;
-    gyro.x = gyr.x * GYRO_CONST;
-    gyro.y = gyr.y * GYRO_CONST;
-    gyro.z = gyr.z * GYRO_CONST;
-    mag.x = magn.x * MAG_CONST;
-    mag.y = magn.y * MAG_CONST;
-    mag.z = magn.z * MAG_CONST;
+    IMUValue v;
+    v.accelVect.x = acc.x;
+    v.accelVect.y = acc.y;
+    v.accelVect.z = acc.z;
+    v.gyroVect.x = gyr.x;
+    v.gyroVect.y = gyr.y;
+    v.gyroVect.z = gyr.z;
+    v.magVect.x = magn.x;
+    v.magVect.y = magn.y;
+    v.magVect.z = magn.z;
+    return v;
 }
