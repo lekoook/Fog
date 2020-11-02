@@ -267,7 +267,7 @@ class PublishThread(threading.Thread):
             if value is not None:
                 if self.useMock:
                     value = next(self.mockReader)
-                    s = "%s %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f" % (self.pubTopic, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8], value[9])
+                    s = "%s %s %s %s %s %s %s %s %s %s" % (self.pubTopic, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8], value[9])
                 else:
                     s = "%s %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f" % (self.pubTopic, value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
                 self.publisher.send_string(s)
