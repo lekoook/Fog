@@ -10,6 +10,7 @@ import csv
 import os
 import glob
 import pandas as pd
+import time
 sys.path.append("..")
 import config
 from DataProvider.lib.crc8 import crc8
@@ -22,6 +23,7 @@ DATA_CHAR_UUID = config.BLE_DATA_CHAR_UUID
 
 # BLE Configurations
 SCAN_TIMEOUT = config.BLE_SCAN_TIMEOUT
+RECONNECT_INTERVAL = 3.0
 
 # BLE specfifications default values
 ADT_COMPLETE_NAME = 0x09
@@ -144,30 +146,56 @@ class ReceiveThread(threading.Thread):
             notifHandler (NotificationHandler): This should contain the callback to handle any incoming data.
         """
         threading.Thread.__init__(self)
+        self.bleDev = None
+        self.bleAddr = None
+        self.bleAddrType = None
         self.notifHandler = notifHandler
         self.shutdown = threading.Event()
         self.connectedEvent = connectedEvent
         self.printPrefix = "[" + self.__class__.__name__ + "]:\t"
 
     def run(self):
+        # Scan for the device name we are interested in.
         scanEntry = self.scanDevice(FEATHER_NAME)
-        
         if scanEntry is None:
             self.print("Cannot find device, is it turned on and receiving connections?")
             exit(DEVICE_NOT_FOUND)
-        
-        device = Peripheral(scanEntry.addr, scanEntry.addrType)
-        self.subNotification(device, DATA_SVC_UUID, DATA_CHAR_UUID, self.notifHandler)
-        self.connectedEvent.set()
+        self.bleAddr = scanEntry.addr
+        self.bleAddrType = scanEntry.addrType
 
+        # Connect once we found it.
+        self.bleConnect()
+        
+        # Listen for notifications
         while not self.shutdown.isSet():
             try:
-                device.waitForNotifications(1)
+                self.bleDev.waitForNotifications(1)
             except KeyboardInterrupt:
                 break
+            except BTLEDisconnectError:
+                # If it ever disconnects midway, attempt to reconnect.
+                self.connectedEvent.clear()
+                self.print("BLE disconnected, will attempt to reconnect")
+                self.bleConnect()
 
         # Cleanup
-        device.disconnect()
+        self.bleDev.disconnect()
+
+    def bleConnect(self):
+        success = False
+        while not success:
+            try:
+                self.print("Attempting connection to address:", self.bleAddr)
+                self.bleDev = Peripheral(self.bleAddr, self.addrType)
+                self.print("Connection success to address:", self.bleAddr)
+                success = True
+            except BTLEException:
+                self.print("Connection unsuccessful, reconnecting in %0.2f seconds..." % RECONNECT_INTERVAL)
+                time.sleep(RECONNECT_INTERVAL)
+                continue
+
+        self.subNotification(self.bleDev, DATA_SVC_UUID, DATA_CHAR_UUID, self.notifHandler)
+        self.connectedEvent.set()
 
     def scanDevice(self, targetName: str) -> ScanEntry:
         self.print("Scanning for", targetName)
