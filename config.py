@@ -23,10 +23,13 @@ REMOTE_MOCK_PATHS   = [
                         ]
                         
 # Remote IMU BLE configuration parameters
-BLE_DEV_NAME        = "Adafruit Bluefruit LE"
-BLE_DATA_SVC_UUID   = "abc0"
-BLE_DATA_CHAR_UUID  = "abc1"
-BLE_SCAN_TIMEOUT    = 3
+BLE_DEV_NAME        = "Adafruit Bluefruit LE"   # Name of device of interest
+BLE_DATA_SVC_UUID   = "abc0"    # UUID for data stream service
+BLE_DATA_CHAR_UUID  = "abc1"    # UUID for data stream characteristic
+BLE_SCAN_TIMEOUT    = 3     # Scan duration (seconds)
+BLE_RESCAN_INTS     = 1.0   # Seconds between scan attempts
+BLE_CONN_ATTEMPTS   = 5     # Number of connection attempts before rescanning
+BLE_RECONN_INTS     = 1.0   # Seconds between connection attempts
 
 # Predictor
 PREDICT_SOCK        = "tcp://127.0.0.1:5557"
