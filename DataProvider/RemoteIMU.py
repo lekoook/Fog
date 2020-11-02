@@ -6,18 +6,22 @@ import threading
 import builtins
 import traceback
 import sys
+import csv
+import os
+import glob
+import pandas as pd
 sys.path.append("..")
 import config
 from DataProvider.lib.crc8 import crc8
 
 # User Configurations
-FEATHER_NAME = "Adafruit Bluefruit LE"
+FEATHER_NAME = config.BLE_DEV_NAME
 # BLE services/characteristics to watch
-DATA_SVC_UUID = "abc0"
-DATA_CHAR_UUID = "abc1"
+DATA_SVC_UUID = config.BLE_DATA_SVC_UUID
+DATA_CHAR_UUID = config.BLE_DATA_CHAR_UUID
 
 # BLE Configurations
-SCAN_TIMEOUT = 3
+SCAN_TIMEOUT = config.BLE_SCAN_TIMEOUT
 
 # BLE specfifications default values
 ADT_COMPLETE_NAME = 0x09
@@ -38,6 +42,7 @@ DATA_CHARACTERISTIC_NOT_FOUND = 3
 CCCD_NOT_FOUND = 4
 
 SEPARATOR = "----------"
+COMBINED_DATA_FILE = "remote_combined.csv"
 
 class NotificationHandler(DefaultDelegate):     
     """
@@ -228,7 +233,7 @@ class ReceiveThread(threading.Thread):
         builtins.print(self.printPrefix, *objs, **kwargs)
 
 class PublishThread(threading.Thread):
-    def __init__(self, notifHandler: NotificationHandler, publishAddr: str, pubTopic: str):
+    def __init__(self, notifHandler: NotificationHandler, publishAddr: str, pubTopic: str, useMock: bool):
         threading.Thread.__init__(self)
         self.shutdown = threading.Event()
         self.bleConnected = threading.Event()
@@ -237,9 +242,15 @@ class PublishThread(threading.Thread):
         self.pubAddr = publishAddr
         self.pubTopic = pubTopic
         self.publisher = None
+        self.useMock = useMock
+        self.mockReader = None
 
     def run(self):
         self.setupPub()
+
+        if self.useMock:
+            # Concatenate all specified mock data for use later.
+            self.mockReader = self.concatData()
 
         # Don't do anything until the BLE has connected successfully.
         connected = False
@@ -252,10 +263,44 @@ class PublishThread(threading.Thread):
 
         while not self.shutdown.isSet():
             value = self.notifHandler.getValue()
+            
             if value is not None:
-                s = "%s %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f" % (self.pubTopic, value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
+                if self.useMock:
+                    value = next(self.mockReader)
+                    s = "%s %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f" % (self.pubTopic, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8], value[9])
+                else:
+                    s = "%s %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f" % (self.pubTopic, value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
                 self.publisher.send_string(s)
                 self.print(s)
+
+        # Clean up
+        if self.useMock:
+            os.remove(COMBINED_DATA_FILE)
+    
+    def concatData(self) -> csv.reader:
+        #set working directory
+        os.chdir(config.REMOTE_MOCK_FOLDER)
+
+        #find all csv files in the folder
+        all_filenames = []
+        dir_files = os.listdir()
+        for f in config.REMOTE_MOCK_PATHS:
+            if f in dir_files:
+                all_filenames.append(f)
+        self.print("Using Mock Data:", all_filenames)
+
+        #combine all files in the list
+        ## Note: Xavier the dataset files all have header so will need to account for that. I removed the header in the
+        ## test data in mock_data to test first
+        combined_csv = pd.concat([pd.read_csv(f, header=None) for f in all_filenames ])
+        #export to csv
+        if os.path.isfile(COMBINED_DATA_FILE):
+            os.remove(COMBINED_DATA_FILE)
+        combined_csv.to_csv(COMBINED_DATA_FILE, index=False, encoding='utf-8-sig', header=None)
+        stream = open(COMBINED_DATA_FILE, newline='')
+        csvFile = csv.reader(stream, delimiter=',')
+
+        return csvFile
 
     def setupPub(self):
         self.print("Setting up publisher to:", self.pubAddr)
@@ -270,7 +315,7 @@ if __name__ == "__main__":
     notifHandler = NotificationHandler()
 
     try:
-        pubData = PublishThread(notifHandler, config.DATA_SOCK, config.REMOTE_IMU_TOPIC)
+        pubData = PublishThread(notifHandler, config.DATA_SOCK, config.REMOTE_IMU_TOPIC, config.REMOTE_USE_MOCK)
         pubData.start()
         recvData = ReceiveThread(notifHandler, pubData.bleConnected)
         recvData.start()

@@ -15,6 +15,18 @@ LOG_FILE_PREFIX     = LOG_FOLDER + "dp_log_"
 # DataProvider filters
 USE_MEDIAN_FILTER   = True
 MF_WINDOW_SIZE      = 3
+REMOTE_USE_MOCK     = True
+REMOTE_MOCK_FOLDER  = "mock_data"
+REMOTE_MOCK_PATHS   = [
+                        "FoG-S-003_2_t1_s2.csv",
+                        "sample_1.csv"
+                        ]
+                        
+# Remote IMU BLE configuration parameters
+BLE_DEV_NAME        = "Adafruit Bluefruit LE"
+BLE_DATA_SVC_UUID   = "abc0"
+BLE_DATA_CHAR_UUID  = "abc1"
+BLE_SCAN_TIMEOUT    = 3
 
 # Predictor
 PREDICT_SOCK        = "tcp://127.0.0.1:5557"
