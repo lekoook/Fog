@@ -285,6 +285,7 @@ class PublishThread(threading.Thread):
         self.publisher.close()
 
         self.print("Closed publisher")
+        self.shutdown.set()
     
     def concatData(self) -> csv.reader:
         #set working directory
@@ -323,17 +324,24 @@ class PublishThread(threading.Thread):
 if __name__ == "__main__":
     notifHandler = NotificationHandler()
 
-    try:
-        pubData = PublishThread(notifHandler, config.DATA_SOCK, config.REMOTE_IMU_TOPIC, config.REMOTE_USE_MOCK)
-        pubData.start()
-        recvData = ReceiveThread(notifHandler, pubData.bleConnected)
-        recvData.start()
+    pubData = PublishThread(notifHandler, config.DATA_SOCK, config.REMOTE_IMU_TOPIC, config.REMOTE_USE_MOCK)
+    pubData.start()
+    recvData = ReceiveThread(notifHandler, pubData.bleConnected)
+    recvData.start()
 
-        while threading.activeCount() > 0:
+    while threading.activeCount() > 0:
+        try:
             time.sleep(0.01)
+            if pubData.shutdown.isSet() or recvData.shutdown.isSet():
+                break
 
-    except KeyboardInterrupt:
-        pubData.shutdown.set()
-        recvData.shutdown.set()
-        pubData.join()
-        recvData.join()
+        except KeyboardInterrupt:
+            break
+
+    # Application about to exit, clean up
+    pubData.shutdown.set()
+    recvData.shutdown.set()
+    pubData.join()
+    recvData.join()
+    context = zmq.Context.instance()
+    context.destroy()
