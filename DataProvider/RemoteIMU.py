@@ -23,9 +23,9 @@ DATA_CHAR_UUID = config.BLE_DATA_CHAR_UUID
 
 # BLE Configurations
 SCAN_TIMEOUT = config.BLE_SCAN_TIMEOUT
-RECONNECT_INTERVAL = 3.0
+RECONNECT_INTERVAL = 1.0
 CONNECT_ATTEMPTS = 5
-RESCAN_INTERVAL = 3.0
+RESCAN_INTERVAL = 1.0
 
 # BLE specfifications default values
 ADT_COMPLETE_NAME = 0x09
@@ -183,7 +183,7 @@ class ReceiveThread(threading.Thread):
                     self.bleConnect() # Connect once we found it. This will block until a connection can be made.
                     success = True
                 else:
-                    self.print("Cannot scan and find device, retrying in %0.2f seconds...", RESCAN_INTERVAL)
+                    self.print("Cannot scan and find device, retrying in %.2f seconds..." % RESCAN_INTERVAL)
                     time.sleep(RESCAN_INTERVAL)
             except Exception as e:
                 self.print("UNKNOWN ERROR")
@@ -234,18 +234,22 @@ class ReceiveThread(threading.Thread):
         self.print("Finding IMU data stream service with UUID:", DATA_SVC_UUID)
         try:
             svc = device.getServiceByUUID(svcUuid)
-        except BTLEException:
+        except BTLEException as e:
             self.print("Data stream service can't be found. Exiting.")
-            exit(DATA_SERVICE_NOT_FOUND)
+            raise e from None
         self.print("Found IMU data stream service!")
         self.print(SEPARATOR)
         
         # Check that the charactertistic we are interested in exists.
         self.print("Finding IMU data characteristic with UUID:", DATA_CHAR_UUID)
-        chars = device.getCharacteristics(uuid=charUuid)
-        if len(chars) == 0:
-            self.print("Data stream characteristic can't be found. Exiting.")
-            exit(DATA_CHARACTERISTIC_NOT_FOUND)
+        try:
+            chars = device.getCharacteristics(uuid=charUuid)
+            if len(chars) == 0:
+                raise Exception
+        except Exception as e:
+            self.print("Error finding data stream characteristic, can't be found.")
+            raise e from None
+
         self.print("Found IMU data stream characteristic!")
         self.print(SEPARATOR)
 
