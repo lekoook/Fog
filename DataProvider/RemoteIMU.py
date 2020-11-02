@@ -178,12 +178,16 @@ class ReceiveThread(threading.Thread):
     def makeConnection(self):
         success = False
         while not success:
-            if self.bleScan():  # Scan for our device first.
-                self.bleConnect() # Connect once we found it. This will block until a connection can be made.
-                success = True
-            else:
-                self.print("Cannot scan and find device, retrying in %0.2f seconds...", RESCAN_INTERVAL)
-                time.sleep(RESCAN_INTERVAL)
+            try:
+                if self.bleScan():  # Scan for our device first.
+                    self.bleConnect() # Connect once we found it. This will block until a connection can be made.
+                    success = True
+                else:
+                    self.print("Cannot scan and find device, retrying in %0.2f seconds...", RESCAN_INTERVAL)
+                    time.sleep(RESCAN_INTERVAL)
+            except Exception as e:
+                self.print("UNKNOWN ERROR")
+                self.print(e)
 
     def bleScan(self) -> bool:
         # Scan for the device name we are interested in.
