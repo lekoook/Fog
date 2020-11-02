@@ -24,6 +24,8 @@ DATA_CHAR_UUID = config.BLE_DATA_CHAR_UUID
 # BLE Configurations
 SCAN_TIMEOUT = config.BLE_SCAN_TIMEOUT
 RECONNECT_INTERVAL = 3.0
+CONNECT_ATTEMPTS = 5
+RESCAN_INTERVAL = 3.0
 
 # BLE specfifications default values
 ADT_COMPLETE_NAME = 0x09
@@ -155,16 +157,8 @@ class ReceiveThread(threading.Thread):
         self.printPrefix = "[" + self.__class__.__name__ + "]:\t"
 
     def run(self):
-        # Scan for the device name we are interested in.
-        scanEntry = self.scanDevice(FEATHER_NAME)
-        if scanEntry is None:
-            self.print("Cannot find device, is it turned on and receiving connections?")
-            exit(DEVICE_NOT_FOUND)
-        self.bleAddr = scanEntry.addr
-        self.bleAddrType = scanEntry.addrType
-
-        # Connect once we found it.
-        self.bleConnect()
+        # Establish connection first.
+        self.makeConnection()
         
         # Listen for notifications
         while not self.shutdown.isSet():
@@ -175,20 +169,40 @@ class ReceiveThread(threading.Thread):
             except BTLEDisconnectError:
                 # If it ever disconnects midway, attempt to reconnect.
                 self.connectedEvent.clear()
-                self.print("BLE disconnected, will attempt to reconnect")
-                self.bleConnect()
+                self.print("BLE disconnected, will attempt to reconnect...")
+                self.makeConnection() # Establish connection again.
 
         # Cleanup
         self.bleDev.disconnect()
 
-    def bleConnect(self):
+    def makeConnection(self):
         success = False
         while not success:
+            if self.bleScan():  # Scan for our device first.
+                self.bleConnect() # Connect once we found it. This will block until a connection can be made.
+                success = True
+            else:
+                self.print("Cannot scan and find device, retrying in %0.2f seconds...", RESCAN_INTERVAL)
+                time.sleep(RESCAN_INTERVAL)
+
+    def bleScan(self) -> bool:
+        # Scan for the device name we are interested in.
+        scanEntry = self.scanDevice(FEATHER_NAME)
+        if scanEntry is None:
+            self.print("Cannot find device, is it turned on and receiving connections?")
+            return False
+        else:
+            self.bleAddr = scanEntry.addr
+            self.bleAddrType = scanEntry.addrType
+            return True
+
+    def bleConnect(self):
+        count = 1
+        while count < CONNECT_ATTEMPTS + 1:
             try:
-                self.print("Attempting connection to address:", self.bleAddr)
+                self.print("Attempt #%i connection to address:" %(count, self.bleAddr))
                 self.bleDev = Peripheral(self.bleAddr, self.bleAddrType)
                 self.print("Connection success to address:", self.bleAddr)
-                success = True
             except BTLEException:
                 self.print("Connection unsuccessful, reconnecting in %0.2f seconds..." % RECONNECT_INTERVAL)
                 time.sleep(RECONNECT_INTERVAL)
