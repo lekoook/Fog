@@ -200,7 +200,7 @@ class ReceiveThread(threading.Thread):
         count = 1
         while count < CONNECT_ATTEMPTS + 1:
             try:
-                self.print("Attempt #%i connection to address:" %(count, self.bleAddr))
+                self.print("Attempt #%i connection to address: %s" %(count, self.bleAddr))
                 self.bleDev = Peripheral(self.bleAddr, self.bleAddrType)
                 self.print("Connection success to address:", self.bleAddr)
             except BTLEException:
