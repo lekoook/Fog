@@ -157,7 +157,6 @@ class ReceiveThread(threading.Thread):
             exit(DEVICE_NOT_FOUND)
         
         device = Peripheral(scanEntry.addr, scanEntry.addrType)
-        notifHandler = NotificationHandler()
         self.subNotification(device, DATA_SVC_UUID, DATA_CHAR_UUID, self.notifHandler)
         self.connectedEvent.set()
 
