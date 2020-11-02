@@ -205,7 +205,7 @@ class ReceiveThread(threading.Thread):
                 self.bleDev = Peripheral(self.bleAddr, self.bleAddrType)
                 self.print("Connection success to address:", self.bleAddr)
                 break
-            except BTLEException:
+            except (BTLEException, Exception):
                 self.print("Connection unsuccessful, reconnecting in %0.2f seconds..." % RECONNECT_INTERVAL)
                 time.sleep(RECONNECT_INTERVAL)
                 continue
