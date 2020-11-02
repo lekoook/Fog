@@ -197,12 +197,14 @@ class ReceiveThread(threading.Thread):
             return True
 
     def bleConnect(self):
-        count = 1
+        count = 0
         while count < CONNECT_ATTEMPTS + 1:
+            count += 1
             try:
                 self.print("Attempt #%i connection to address: %s" %(count, self.bleAddr))
                 self.bleDev = Peripheral(self.bleAddr, self.bleAddrType)
                 self.print("Connection success to address:", self.bleAddr)
+                break
             except BTLEException:
                 self.print("Connection unsuccessful, reconnecting in %0.2f seconds..." % RECONNECT_INTERVAL)
                 time.sleep(RECONNECT_INTERVAL)
