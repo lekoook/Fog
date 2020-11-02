@@ -166,7 +166,7 @@ class ReceiveThread(threading.Thread):
                 self.bleDev.waitForNotifications(1)
             except KeyboardInterrupt:
                 break
-            except BTLEDisconnectError:
+            except (BTLEDisconnectError, Exception):
                 # If it ever disconnects midway, attempt to reconnect.
                 self.connectedEvent.clear()
                 self.print("BLE disconnected, will attempt to reconnect...")
