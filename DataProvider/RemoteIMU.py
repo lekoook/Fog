@@ -266,16 +266,25 @@ class PublishThread(threading.Thread):
             
             if value is not None:
                 if self.useMock:
-                    value = next(self.mockReader)
+                    try:
+                        value = next(self.mockReader)
+                    except StopIteration:
+                        self.print("Reached end of data")
+                        break
                     s = "%s %s %s %s %s %s %s %s %s %s" % (self.pubTopic, value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8], value[9])
                 else:
                     s = "%s %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f %0.2f" % (self.pubTopic, value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8])
                 self.publisher.send_string(s)
                 self.print(s)
 
+        self.print("Cleaning up publisher")
+
         # Clean up
         if self.useMock:
             os.remove(COMBINED_DATA_FILE)
+        self.publisher.close()
+
+        self.print("Closed publisher")
     
     def concatData(self) -> csv.reader:
         #set working directory
