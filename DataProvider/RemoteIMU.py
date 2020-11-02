@@ -186,7 +186,7 @@ class ReceiveThread(threading.Thread):
         while not success:
             try:
                 self.print("Attempting connection to address:", self.bleAddr)
-                self.bleDev = Peripheral(self.bleAddr, self.addrType)
+                self.bleDev = Peripheral(self.bleAddr, self.bleAddrType)
                 self.print("Connection success to address:", self.bleAddr)
                 success = True
             except BTLEException:
