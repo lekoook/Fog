@@ -81,7 +81,8 @@ class BlinkTh(threading.Thread):
     def run(self):
         global isFog
         stopSoundPath = os.getcwd() + "/" + config.SOUNDS_FOLDER + config.STOP_SOUND_PATH
-        stopCmd = "aplay -D mid " + stopSoundPath
+        stopCmd = "aplay -D speaker " + stopSoundPath # Play on speaker
+        #stopCmd = "aplay -D mid " + stopSoundPath # Play on headphone
 
         while not self.shutdown.isSet():
             if isFog and not GPIO.input(self.LED_PIN):
