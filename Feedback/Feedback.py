@@ -1,11 +1,13 @@
 #!/bin/usr/python3
 
-import RPi.GPIO as GPIO
+# import RPi.GPIO as GPIO
 import zmq
 import threading
 import time
 import sys
 import os
+import builtins
+from BluetoothctlWrapper import Bluetoothctl
 sys.path.append("..")
 import config
 
@@ -63,7 +65,7 @@ class ReadStateTh(threading.Thread):
         context = zmq.Context.instance()
         context.destroy()
 
-class BlinkTh(threading.Thread):
+class PlayAudioTh(threading.Thread):
     """
     This thread will blink the LED according to the current FoG state.
 
@@ -75,9 +77,11 @@ class BlinkTh(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.shutdown = threading.Event()
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.LED_PIN, GPIO.OUT) 
-        GPIO.output(self.LED_PIN, GPIO.LOW)
+        self.bctl = Bluetoothctl()
+        self.printPrefix = "[" + self.__class__.__name__ + "]:\t"
+        # GPIO.setmode(GPIO.BCM)
+        # GPIO.setup(self.LED_PIN, GPIO.OUT) 
+        # GPIO.output(self.LED_PIN, GPIO.LOW)
 
     def run(self):
         global isFog
@@ -86,27 +90,47 @@ class BlinkTh(threading.Thread):
         #stopCmd = "aplay -D mid " + stopSoundPath # Play on headphone
 
         while not self.shutdown.isSet():
-            #if isFog and not GPIO.input(self.LED_PIN):
-            if isFog:
-                # Turn LED for 1 second and turn off again.
-                #GPIO.output(self.LED_PIN, GPIO.HIGH)
-                os.system(stopCmd)
-                print("On")
-                time.sleep(1)
-            
-            #if not isFog and GPIO.input(self.LED_PIN):
-            if not isFog:
-                GPIO.output(self.LED_PIN, GPIO.LOW)
-                print("Off")
+            try:
+                # Check if the headphone is connected, if not attempt to connect until it can connected.
+                if not self.isHeadphoneConnected():
+                    self.print("Headphone is disconnected")
+                    self.setupHeadphone()
+                    
+                #if isFog and not GPIO.input(self.LED_PIN):
+                if isFog:
+                    # Turn LED for 1 second and turn off again.
+                    #GPIO.output(self.LED_PIN, GPIO.HIGH)
+                    os.system(stopCmd)
+                    self.print("On")
+                    time.sleep(1)
+                
+                #if not isFog and GPIO.input(self.LED_PIN):
+                if not isFog:
+                    # GPIO.output(self.LED_PIN, GPIO.LOW)
+                    self.print("Off")
 
-            time.sleep(0.1)
+                time.sleep(0.1)
+            except KeyboardInterrupt:
+                break
+
+    def setupHeadphone(self):
+        self.print("Attempting to connect to headphone: ", config.HEADPH_MAC)
+        while not self.bctl.connect(config.HEADPH_MAC):
+            time.sleep(0.5)
+        self.print("Headphone %s is now connected" % config.HEADPH_MAC)
+
+    def isHeadphoneConnected(self):
+        return self.bctl.isConnected(config.HEADPH_MAC)
+
+    def print(self, *objs, **kwargs):
+        builtins.print(self.printPrefix, *objs, **kwargs)
 
 if __name__ == "__main__":
     try:
         readState = ReadStateTh(config.PREDICT_SOCK, config.PREDICT_TOPIC)
-        blink = BlinkTh()
+        audio = PlayAudioTh()
         readState.start()
-        blink.start()
+        audio.start()
 
         # Let's keep the main thread running to catch ctrl-c terminations.
         while threading.activeCount() > 0:
@@ -114,7 +138,7 @@ if __name__ == "__main__":
     
     except KeyboardInterrupt:
         readState.shutdown.set()
-        blink.shutdown.set()
+        audio.shutdown.set()
         readState.join()
-        blink.join()
+        audio.join()
         
