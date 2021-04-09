@@ -7,22 +7,9 @@ REMOTE_IMU_TOPIC    = "remote_imu"
 USE_MOCK_DATA       = True # Set to False to read and use actual IMU data.
 MOCK_DATA_FOLDER    = "mock_data/Test_data/"
 MOCK_DATA_PATHS     = [
-                        "FoG-S-003_2_t1_s2.csv",
-                        "sample_1.csv",
-                        "FoG-S-003_2_t1_s2.csv",
-                        "sample_1.csv",
-                        "FoG-S-003_2_t1_s2.csv",
-                        "sample_1.csv",
-                        "FoG-S-003_2_t1_s2.csv",
-                        "sample_1.csv",
-                        "FoG-S-003_2_t1_s2.csv",
-                        "sample_1.csv",
-                        "FoG-S-003_2_t1_s2.csv",
-                        "sample_1.csv",
-                        "FoG-S-003_2_t1_s2.csv",
-                        "sample_1.csv",
-                        "FoG-S-003_2_t1_s2.csv",
-                        "sample_1.csv"
+                        "FoG-T-141_2_t1_s1.csv",
+                        "FoG-T-141_2_t1_s2.csv",
+                        "FoG-T-141_2_t1_s3.csv"
                         ] # Relative to where DataPublisher.py is located. Give multiple file names in this list to concaternate them as one. 
 LOG_FOLDER          = "logs/"
 LOG_FILE_PREFIX     = LOG_FOLDER + "dp_log_"
