@@ -5,7 +5,7 @@ DATA_SOCK           = "tcp://127.0.0.1:5556"
 LOCAL_IMU_TOPIC     = "local_imu"
 REMOTE_IMU_TOPIC    = "remote_imu"
 USE_MOCK_DATA       = True # Set to False to read and use actual IMU data.
-MOCK_DATA_FOLDER    = "mock_data/Test_data/"
+MOCK_DATA_FOLDER    = "mock_data"
 MOCK_DATA_PATHS     = [
                         "FoG-T-141_2_t1_s1.csv",
                         "FoG-T-141_2_t1_s2.csv",
