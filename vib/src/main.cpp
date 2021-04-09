@@ -251,7 +251,6 @@ void loop(void)
 
     if (toVib)
     {
-        Serial.println ("activate");
         vibrator.actuate(2, 2);
     }
     vibrator.update();
