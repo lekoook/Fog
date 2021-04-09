@@ -69,6 +69,7 @@
 #define VIB_CHAR 0xABD1
 #define BTN_CHAR 0xABD2
 #define DATA_SIZE 1
+#define BTN_DATA_SIZE 2
 #define VIB_CHAR_DESC "Vibration"
 #define BTN_CHAR_DESC "Button"
 #define VIB_SRV_LOW (VIB_SERVICE & 0x00FF)
@@ -85,8 +86,8 @@
 #define VIB_COOLDOWN_INTV_MS (VIB_SET_INTV_MS * 3)
 #define BLINK_DURATION 100
 #define BUT_DEBOUNCE_MS 20
-#define BUT_MULT_CLICK_MS 1000
-#define BUT_LONG_CLICK_MS 3000
+#define BUT_MULT_CLICK_MS 250
+#define BUT_LONG_CLICK_MS 1000
 
 // Create the bluefruit object, either software serial...uncomment these lines
 /*
@@ -164,7 +165,6 @@ void setup(void)
     {
         Serial.println(F("Couldn't factory reset"));
     }
-    blink(1, BLINK_DURATION);
     #endif
 
     /* Disable command echo from Bluefruit */
@@ -177,7 +177,6 @@ void setup(void)
         Serial.println(F("Could not add vibration Service"));
         delay(100);
     }
-    blink(1, BLINK_DURATION);
 
     // Add characteristic for vibration.
     while (vibCharId == 0)
@@ -187,44 +186,37 @@ void setup(void)
         Serial.println(F("Could not add vibration characteristic"));
         delay(100);
     }
-    blink(1, BLINK_DURATION);
 
     // Add characteristic for button presses.
     while (btnCharId == 0)
     {
-        btnCharId = gatt.addCharacteristic(BTN_CHAR, GATT_CHARS_PROPERTIES_READ, DATA_SIZE, 
-            DATA_SIZE, BLE_DATATYPE_INTEGER, BTN_CHAR_DESC);
+        btnCharId = gatt.addCharacteristic(BTN_CHAR, GATT_CHARS_PROPERTIES_NOTIFY, BTN_DATA_SIZE, 
+            BTN_DATA_SIZE, BLE_DATATYPE_BYTEARRAY, BTN_CHAR_DESC);
         Serial.println(F("Could not add button characteristic"));
         delay(100);
     }
-    blink(1, BLINK_DURATION);
 
     // Subscribe to incoming callback for vibration charactertistic.
     ble.setBleGattRxCallback(vibCharId, vibGattRx);
-    blink(1, BLINK_DURATION);
 
     // Advertise the vibration service to any central devices.
     uint8_t advdata[] { 0x02, 0x01, 0x06, 0x03, 0x02, VIB_SRV_HIGH, VIB_SRV_LOW };
     ble.setAdvData(advdata, sizeof(advdata));
-    blink(1, BLINK_DURATION);
 
     /* Reset the device for the new service setting changes to take effect */
     ble.reset();
-    blink(1, BLINK_DURATION);
     
-    ble.verbose(false);  // debug info is a little annoying after this point!
-
     // LED Activity command is only supported from 0.6.6
     if (ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION) )
     {
         // Change Mode LED Activity
         ble.sendCommandCheckOK("AT+HWModeLED=" MODE_LED_BEHAVIOUR);
     }
-    blink(1, BLINK_DURATION);
+
+    ble.verbose(false);  // debug info is a little annoying after this point!
     
     ble.setConnectCallback(bleConnectCb);
     ble.setDisconnectCallback(bleDisconnectCb);
-    blink(1, BLINK_DURATION);
     ///// Initialise BLE module END /////
 }
 
@@ -239,8 +231,13 @@ void loop(void)
 
     if (button.clicks != 0)
     {
-        // Serial.println(button.clicks);
-        gatt.setChar(btnCharId, (uint8_t)button.clicks);
+        int16_t clicks = button.clicks;
+        uint8_t data[BTN_DATA_SIZE] = { 0 };
+        for (int i = 0; i < BTN_DATA_SIZE; i++)
+        {
+            data[i] = (uint8_t)((clicks >> (i * 8) & 0xFF));
+        }
+        gatt.setChar(btnCharId, data, BTN_DATA_SIZE);
     }
     
 
@@ -254,6 +251,7 @@ void loop(void)
 
     if (toVib)
     {
+        Serial.println ("activate");
         vibrator.actuate(2, 2);
     }
     vibrator.update();
