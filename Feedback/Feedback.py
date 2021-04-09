@@ -91,6 +91,9 @@ class PlayAudioTh(threading.Thread):
         stopCmd = "aplay -D speaker " + stopSoundPath # Play on speaker
         #stopCmd = "aplay -D mid " + stopSoundPath # Play on headphone
 
+        if self.isHeadphoneConnected():
+            self.print("Headphone is connected")
+
         while not self.shutdown.isSet():
             try:
                 # Check if the headphone is connected, if not attempt to connect until it can connected.
