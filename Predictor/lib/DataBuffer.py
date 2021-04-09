@@ -53,7 +53,7 @@ class DataBuffer():
         if len(self.buffer) >= n and n >= 1:
             result = []
             for i in range(0, n):
-                self.buffer.rotate(-1)
+                self.buffer.rotate(-i)
                 result.append(self.buffer[0])
 
             self.buffer.rotate(n - 1)

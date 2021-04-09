@@ -53,7 +53,8 @@ class ReadStateTh(threading.Thread):
             if (sockEvents & zmq.POLLIN) > 0:
                 string = self.sub.recv_string()
                 t, state = string.split()
-                if state is "0":
+                state = float(state)
+                if state == 0.0:
                     isFog = False
                 else:
                     isFog = True
@@ -85,14 +86,16 @@ class BlinkTh(threading.Thread):
         #stopCmd = "aplay -D mid " + stopSoundPath # Play on headphone
 
         while not self.shutdown.isSet():
-            if isFog and not GPIO.input(self.LED_PIN):
+            #if isFog and not GPIO.input(self.LED_PIN):
+            if isFog:
                 # Turn LED for 1 second and turn off again.
-                GPIO.output(self.LED_PIN, GPIO.HIGH)
+                #GPIO.output(self.LED_PIN, GPIO.HIGH)
                 os.system(stopCmd)
                 print("On")
                 time.sleep(1)
             
-            if not isFog and GPIO.input(self.LED_PIN):
+            #if not isFog and GPIO.input(self.LED_PIN):
+            if not isFog:
                 GPIO.output(self.LED_PIN, GPIO.LOW)
                 print("Off")
 
