@@ -51,4 +51,5 @@ BTN_SOCK            = "tcp://127.0.0.1:5558"
 BTN_TOPIC           = "button"
 SOUNDS_FOLDER       = "sounds/"
 STOP_SOUND_PATH     = "stop.wav"
-HEADPH_MAC          = "D8:37:3B:1C:74:AD"
+HEADPH_MAC          = "D8:37:3B:1C:74:AD" # JBL Go 3 speaker
+# HEADPH_MAC          = "20:74:CF:5E:9F:76" # AfterShokz Titanium headphone
