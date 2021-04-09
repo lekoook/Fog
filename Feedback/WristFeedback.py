@@ -116,6 +116,7 @@ class WristDeviceThread(threading.Thread):
     def run(self):
         deviceFound = False
         while not self.shutdown.isSet():
+            time.sleep(0.1) # 10 Hz loop
             try:
                 if deviceFound:
                     self.device.waitForNotifications(0.1)
@@ -266,12 +267,14 @@ class PublishThread(threading.Thread):
         connected = False
         self.print("Waiting for BLE")
         while not self.shutdown.isSet():
+            time.sleep(0.1) # 10 Hz loop
             connected = self.bleConnected.wait(0.5)
             if connected:
                 self.print("BLE connected!")
                 break
 
         while not self.shutdown.isSet():
+            time.sleep(0.1) # 10 Hz loop
             value = self.notifHandler.getValue()
             if value is not None:
                 self.print("Button pressed: %d" % value)
