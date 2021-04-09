@@ -1,4 +1,5 @@
 #!/bin/usr/python3
+import zmq
 from bluepy.btle import *
 from queue import Queue, Empty
 import threading
@@ -6,7 +7,11 @@ import builtins
 import traceback
 import sys
 sys.path.append("..")
+import config
 from DataProvider.lib.crc8 import crc8
+
+# Constants
+POLL_TIMEOUT = 100 # milliseconds
 
 # User Configurations
 DEVICE_NAME = "Adafruit Bluefruit LE"
@@ -39,6 +44,8 @@ CCCD_NOT_FOUND = 4
 
 SEPARATOR = "----------"
 
+wristDevice = None
+
 class NotificationHandler(DefaultDelegate):     
     """
     This child class inherits the DefaultDelegate parent class that will be used as a notification handler for incoming BLE data.
@@ -61,61 +68,15 @@ class NotificationHandler(DefaultDelegate):
             cHandle (int): An integer representing the BLE attribute handle for which the data is coming from.
             data (bytes): New incoming data.
         """
-        print(data)
-        print(int.from_bytes(data, "little", signed=True))
-        # self.processData(data)
+        presses = int.from_bytes(data, "little", signed=True)
+        self.queue.put(presses);
 
-    def processData(self, data: bytes):
-        """
-        Processes any new incoming data into the buffer.
-
-        If a complete message has been received, the data in the message will be extracted and place in the queue.
-
-        Args:
-            data (bytes): New incoming data.
-        """
-        self.buffer += data
-
-        # If this is true, it means that we are seeing the start of a FULL message.
-        if (self.buffer.startswith(START_BYTE)) and (len(self.buffer) >= MSG_LEN):
-            while (self.buffer.startswith(START_BYTE)) and (len(self.buffer) >= MSG_LEN):
-                msg = self.buffer[0:MSG_LEN] # Retrieve the rest of the full message.
-                self.buffer = self.buffer[MSG_LEN:] # Keep the rest of the buffer.
-                self.processMsg(msg) # Process message.
-
-        # If we reached here, it means that either there are leading bytes at the front that does not belong to any message 
-        # (there was no START_BYTE or we have never received the START_BYTE, only received some parts of that message)
-        # OR we have seen the START_BYTE but the full message hasn't arrived completely yet. So we wait for more data to come in.
-        else:
-            sPos = self.buffer.find(START_BYTE) # Find the index position of the FIRST START_BYTE
-            if sPos > 0:
-                self.buffer = self.buffer[sPos:] # Keep the buffer, starting from the first START_BYTE until the end. Essentially removing leading bytes if there are any.
-
-    def processMsg(self, msg: bytes):
-        """
-        Processes the message to extract it's contents (data).
-
-        Args:
-            msg (bytes): Message to extract data from.
-        """
-        crc = crc8(msg[:MSG_LEN-1])
-        if crc != msg[MSG_LEN-1]:
-            return # Error in bytes, disregard this data set
-
-        values = []
-        # Disregard the START_BYTE
-        for i in range(1, MSG_LEN-1, FIELD_LEN):
-            value = msg[i:i+FIELD_LEN]
-            value = struct.unpack('f', value)[0]
-            values.append(value)
-        self.queue.put(values)
-
-    def getValue(self) -> list:
+    def getValue(self) -> int:
         """
         Retrieves a single value from the queue buffer.
 
         Returns:
-            list: List containing IMU values: [ax, ay, az, gx, gy, gz, mx, my, mz]
+            button: Value indicating how many times the button was pressed. Negative indicates the last press was a long held press.
         """
         try:
             return self.queue.get(block=False)
@@ -123,7 +84,6 @@ class NotificationHandler(DefaultDelegate):
             return None
 
     
-
 class WristDeviceThread(threading.Thread):
     """
     Represents the thread that will connect to wrist device, listen for button presses and send vbration command via BLE.
@@ -144,6 +104,10 @@ class WristDeviceThread(threading.Thread):
         threading.Thread.__init__(self)
         self.notifHandler = notifHandler
         self.shutdown = threading.Event()
+        self.fogOn = threading.Event()
+        self.fogOn.clear()
+        self.fogOff = threading.Event()
+        self.fogOff.clear()
         self.connectedEvent = connectedEvent
         self.printPrefix = "[" + self.__class__.__name__ + "]:\t"
         self.vibChar = None
@@ -155,6 +119,14 @@ class WristDeviceThread(threading.Thread):
             try:
                 if deviceFound:
                     self.device.waitForNotifications(0.1)
+                    if self.fogOn.isSet():
+                        self.fogOn.clear()
+                        self.print("Activate vibration")
+                        self.vibChar.write(bytes("1", encoding="utf-8"))
+                    if self.fogOff.isSet():
+                        self.fogOff.clear()
+                        self.print("Deactivate vibration")
+                        self.vibChar.write(bytes("2", encoding="utf-8"))
                 else:
                     if self.setupDevice(DEVICE_NAME):
                         self.print("Device setup success.")
@@ -239,8 +211,8 @@ class WristDeviceThread(threading.Thread):
         self.print(SEPARATOR)
 
         # Now that we are sure both the service and characteristics exists, we subscribe to receive notifications whenever there is new data.
-        self.print("Finding CCCD handle to subscribe to notifications:", BTN_CHAR_UUID)
         ch = chars[0] # Assuming the characteristic is the only element.
+        self.print("Finding CCCD handle to subscribe to notifications:", BTN_CHAR_UUID)
         charFound = False
         cccd = None
         for d in device.getDescriptors():
@@ -266,18 +238,30 @@ class WristDeviceThread(threading.Thread):
         self.print(SEPARATOR)
         return True
 
+    def activateVib(self):
+        self.fogOn.set()
+
+    def deactivateVib(self):
+        self.fogOff.set()
+
     def print(self, *objs, **kwargs):
         builtins.print(self.printPrefix, *objs, **kwargs)
 
 class PublishThread(threading.Thread):
-    def __init__(self, notifHandler: NotificationHandler):
+    def __init__(self, notifHandler: NotificationHandler, btnAddr: str, btnTopic: str):
         threading.Thread.__init__(self)
         self.shutdown = threading.Event()
         self.bleConnected = threading.Event()
         self.notifHandler = notifHandler
         self.printPrefix = "[" + self.__class__.__name__ + "]:\t"
+        self.btnAddr = btnAddr
+        self.btnTopic = btnTopic
+        self.publisher = None
 
     def run(self):
+        # Set up the button press publisher.
+        self.setupPub();
+        
         # Don't do anything until the BLE has connected successfully.
         connected = False
         self.print("Waiting for BLE")
@@ -290,25 +274,86 @@ class PublishThread(threading.Thread):
         while not self.shutdown.isSet():
             value = self.notifHandler.getValue()
             if value is not None:
-                self.print(value)
+                self.print("Button pressed: %d" % value)
+                self.publisher.send_string("%s %d" % (self.btnTopic, value))
+
+    def setupPub(self):
+        context = zmq.Context()
+        publisher = context.socket(zmq.PUB)
+        publisher.bind(self.btnAddr)
+        self.publisher = publisher
 
     def print(self, *objs, **kwargs):
         builtins.print(self.printPrefix, *objs, **kwargs)
+
+class ReadStateThread(threading.Thread):
+    """
+    This thread attempts to read any incoming predicted state.
+
+    Args:
+        threading (Thread): threading.Thread object.
+    """
+
+    def __init__(self, subAddr: str, topic: str):
+        """
+        Initialization.
+
+        Args:
+            subAddr (str): Socket address for subscription.
+            topic (str): Topic to subscribe to.
+        """
+
+        threading.Thread.__init__(self)
+
+        self.shutdown = threading.Event()
+
+        # Socket to talk to publisher
+        self.context = zmq.Context()
+        self.sub = self.context.socket(zmq.SUB)
+        self.sub.connect(subAddr)
+
+        # Set socket options to subscribe to IMU topic
+        self.sub.setsockopt_string(zmq.SUBSCRIBE, topic)
+
+    def run(self):
+        global wristDevice
+        fogOn = False
+        prevFogOn = False
+        while not self.shutdown.isSet():
+            sockEvents = self.sub.poll(POLL_TIMEOUT, zmq.POLLIN)
+            if (sockEvents & zmq.POLLIN) > 0:
+                string = self.sub.recv_string()
+                t, state = string.split()
+                fogOn = float(state) > 0.0
+                if wristDevice is not None:
+                    if fogOn and not prevFogOn:
+                        wristDevice.activateVib()
+                    if not fogOn and prevFogOn:
+                        wristDevice.deactivateVib()
+                prevFogOn = fogOn
+
+        # Clean up
+        context = zmq.Context.instance()
+        context.destroy()
 
 if __name__ == "__main__":
     notifHandler = NotificationHandler()
 
     try:
-        pubData = PublishThread(notifHandler)
+        pubData = PublishThread(notifHandler, config.BTN_SOCK, config.BTN_TOPIC)
         pubData.start()
-        recvData = WristDeviceThread(notifHandler, pubData.bleConnected)
-        recvData.start()
+        wristDevice = WristDeviceThread(notifHandler, pubData.bleConnected)
+        wristDevice.start()
+        readFog = ReadStateThread(config.PREDICT_SOCK, config.PREDICT_TOPIC)
+        readFog.start()
 
         while threading.activeCount() > 0:
             time.sleep(0.01)
 
     except KeyboardInterrupt:
         pubData.shutdown.set()
-        recvData.shutdown.set()
+        wristDevice.shutdown.set()
+        readFog.shutdown.set()
         pubData.join()
-        recvData.join()
+        wristDevice.join()
+        readFog.join()
