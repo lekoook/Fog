@@ -85,6 +85,8 @@ class PlayAudioTh(threading.Thread):
 
     def run(self):
         global isFog
+        currIsFog = False
+        prevIsFog = False
         stopSoundPath = os.getcwd() + "/" + config.SOUNDS_FOLDER + config.STOP_SOUND_PATH
         stopCmd = "aplay -D speaker " + stopSoundPath # Play on speaker
         #stopCmd = "aplay -D mid " + stopSoundPath # Play on headphone
@@ -96,19 +98,23 @@ class PlayAudioTh(threading.Thread):
                     self.print("Headphone is disconnected")
                     self.setupHeadphone()
                     
+                currIsFog = isFog
                 #if isFog and not GPIO.input(self.LED_PIN):
-                if isFog:
+                if currIsFog and not prevIsFog:
+                    self.print("On")
+                    
+                if currIsFog:
                     # Turn LED for 1 second and turn off again.
                     #GPIO.output(self.LED_PIN, GPIO.HIGH)
                     os.system(stopCmd)
-                    self.print("On")
                     time.sleep(1)
                 
                 #if not isFog and GPIO.input(self.LED_PIN):
-                if not isFog:
+                if not currIsFog and prevIsFog:
                     # GPIO.output(self.LED_PIN, GPIO.LOW)
                     self.print("Off")
-
+                
+                prevIsFog = currIsFog
                 time.sleep(0.1)
             except KeyboardInterrupt:
                 break
