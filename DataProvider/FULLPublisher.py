@@ -85,7 +85,8 @@ def pubMock(publisher: zmq.Socket, topic: str, filePath: str):
     
     for root, dirs, files in os.walk(config.MOCK_DATA_FOLDER, topdown=False):
         for folder in dirs:
-            os.chdir('/home/pi/workspace/Fog/DataProvider/' + os.path.join(root, folder))
+            cwd = os.getcwd() + "/"
+            os.chdir(cwd + os.path.join(root, folder))
             print(os.getcwd())
             print("Testing on trial data:", folder)
 
@@ -114,8 +115,24 @@ def pubMock(publisher: zmq.Socket, topic: str, filePath: str):
             R_stream = open("right_data.csv", newline='')
             R_csvFile = csv.reader(R_stream, delimiter=',')
            
-            userInput = input("Waiting to start...")
 
+            # Wait for Predictor to be ready for data
+            context = zmq.Context()
+            client = context.socket(zmq.REQ)
+            client.connect(config.PREDICT_READY_SOCK)
+            request = "Ready?".encode()
+            print("Waiting for Predictor to be ready...")
+            client.send(request)
+            
+            if (client.poll() & zmq.POLLIN) != 0:
+                reply = client.recv().decode()
+                if reply == "Yes":
+                    print("Predictor is ready!")
+                
+            if config.WAIT_FOR_USER:
+                userInput = input("Press something to start...")
+
+            print("Publishing data")
             while True:
                 try:
                     # Read IMU values from left and right data stream from CSV files

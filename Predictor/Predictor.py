@@ -88,6 +88,15 @@ class detectionThread(threading.Thread):
         self.clf_P    = load(config.MLP_P_JOBLIB_PATH)
         
     def run(self):
+        # Inform the data publisher that we are ready for data
+        context = zmq.Context()
+        readyReplier = context.socket(zmq.REP)
+        readyReplier.bind(config.PREDICT_READY_SOCK)
+        request = readyReplier.recv().decode()
+        if request == "Ready?":
+            readyReplier.send("Yes".encode())
+
+        print("Starting Predictor")
         #Clock variable to maintain 0.1s cycle
         t = time.time()
         #Repeating prediction code

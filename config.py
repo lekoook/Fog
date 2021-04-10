@@ -4,6 +4,7 @@
 DATA_SOCK           = "tcp://127.0.0.1:5556"
 LOCAL_IMU_TOPIC     = "local_imu"
 REMOTE_IMU_TOPIC    = "remote_imu"
+WAIT_FOR_USER       = True
 USE_MOCK_DATA       = True # Set to False to read and use actual IMU data.
 MOCK_DATA_FOLDER    = "mock_data"
 MOCK_DATA_PATHS     = [
@@ -34,6 +35,7 @@ BLE_RECONN_INTS     = 1.0   # Seconds between connection attempts
 
 # Predictor
 PREDICT_SOCK        = "tcp://127.0.0.1:5557"
+PREDICT_READY_SOCK  = "tcp://127.0.0.1:5559"
 PREDICT_TOPIC       = "ps"
 PREDICT_MODE        = "MLP"
 WIN_SIZE            = 100
