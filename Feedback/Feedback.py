@@ -91,10 +91,10 @@ class PlayAudioTh(threading.Thread):
         prevIsFog = False
         stopSoundPath = os.getcwd() + "/" + config.SOUNDS_FOLDER + config.STOP_SOUND_PATH
         
+        stopCmd = ""
         if self.isAudioConnected():
             self.print("Audio device %s (%s) is connected" % (self.connectedAudioMac, self.connectedAudioName))
-
-        stopCmd = "aplay -D bluealsa:DEV=" + self.connectedAudioMac + " " + stopSoundPath # Play on connected audio
+            stopCmd = "aplay -D bluealsa:DEV=" + self.connectedAudioMac + " " + stopSoundPath # Play on connected audio
 
         while not self.shutdown.isSet():
             try:
