@@ -102,6 +102,7 @@ class PlayAudioTh(threading.Thread):
                 if not self.isAudioConnected():
                     self.print("Audio is disconnected")
                     self.connectAudio()
+                    stopCmd = "aplay -D bluealsa:DEV=" + self.connectedAudioMac + " " + stopSoundPath # Play on connected audio
                     
                 currIsFog = isFog
                 #if isFog and not GPIO.input(self.LED_PIN):
