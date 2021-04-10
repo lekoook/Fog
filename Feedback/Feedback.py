@@ -90,7 +90,12 @@ class PlayAudioTh(threading.Thread):
         currIsFog = False
         prevIsFog = False
         stopSoundPath = os.getcwd() + "/" + config.SOUNDS_FOLDER + config.STOP_SOUND_PATH
-        stopCmd = "aplay -D speaker " + stopSoundPath # Play on speaker
+        
+        if self.connectedAudioName == config.SPEAKER_MAC:
+            soundDev = "head "
+        elif self.connectedAudioName == config.HEADPHONE_MAC:
+            soundDev = "speaker "
+        stopCmd = "aplay -D " + soundDev + stopSoundPath # Play on speaker
         #stopCmd = "aplay -D mid " + stopSoundPath # Play on headphone
 
         if self.isAudioConnected():
