@@ -79,6 +79,8 @@ class PlayAudioTh(threading.Thread):
         self.shutdown = threading.Event()
         self.bctl = Bluetoothctl()
         self.printPrefix = "[" + self.__class__.__name__ + "]:\t"
+        self.connectedAudioMac = None
+        self.connectedAudioName = None
         # GPIO.setmode(GPIO.BCM)
         # GPIO.setup(self.LED_PIN, GPIO.OUT) 
         # GPIO.output(self.LED_PIN, GPIO.LOW)
@@ -91,15 +93,15 @@ class PlayAudioTh(threading.Thread):
         stopCmd = "aplay -D speaker " + stopSoundPath # Play on speaker
         #stopCmd = "aplay -D mid " + stopSoundPath # Play on headphone
 
-        if self.isHeadphoneConnected():
-            self.print("Headphone is connected")
+        if self.isAudioConnected():
+            self.print("Audio device %s (%s) is connected" % (self.connectedAudioMac, self.connectedAudioName))
 
         while not self.shutdown.isSet():
             try:
                 # Check if the headphone is connected, if not attempt to connect until it can connected.
-                if not self.isHeadphoneConnected():
-                    self.print("Headphone is disconnected")
-                    self.setupHeadphone()
+                if not self.isAudioConnected():
+                    self.print("Audio is disconnected")
+                    self.connectAudio()
                     
                 currIsFog = isFog
                 #if isFog and not GPIO.input(self.LED_PIN):
@@ -122,14 +124,22 @@ class PlayAudioTh(threading.Thread):
             except KeyboardInterrupt:
                 break
 
-    def setupHeadphone(self):
-        self.print("Attempting to connect to headphone: ", config.HEADPH_MAC)
-        while not self.bctl.connect(config.HEADPH_MAC):
-            time.sleep(0.5)
-        self.print("Headphone %s is now connected" % config.HEADPH_MAC)
+    def connectAudio(self) -> bool:
+        for dev in config.AUDIO_MACS:
+            if self.bctl.connect(dev):
+                self.connectedAudioMac = dev
+                self.connectedAudioName = self.bctl.getDeviceName(dev)
+                self.print("Connected to %s (%s)" % (dev, self.connectedAudioName))
+                return True
+        return False
 
-    def isHeadphoneConnected(self):
-        return self.bctl.isConnected(config.HEADPH_MAC)
+    def isAudioConnected(self) -> bool:
+        for dev in config.AUDIO_MACS:
+            if self.bctl.isConnected(dev):
+                self.connectedAudioMac = dev
+                self.connectedAudioName = self.bctl.getDeviceName(dev)
+                return True
+        return False
 
     def print(self, *objs, **kwargs):
         builtins.print(self.printPrefix, *objs, **kwargs)

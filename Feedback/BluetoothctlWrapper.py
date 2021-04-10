@@ -198,3 +198,9 @@ class Bluetoothctl:
         else:
             return False
 
+    def getDeviceName(self, mac_address):
+        """ Retrieve the name of the device. """
+        lines = self.get_device_info(mac_address)
+        for l in lines:
+            if "Name:" in l:
+                return l.split(":", 1)[-1].strip()
