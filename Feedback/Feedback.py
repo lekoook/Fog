@@ -101,8 +101,8 @@ class PlayAudioTh(threading.Thread):
                 # Check if the headphone is connected, if not attempt to connect until it can connected.
                 if not self.isAudioConnected():
                     self.print("Audio is disconnected")
-                    self.connectAudio()
-                    stopCmd = "aplay -D bluealsa:DEV=" + self.connectedAudioMac + " " + stopSoundPath # Play on connected audio
+                    if self.connectAudio():
+                        stopCmd = "aplay -D bluealsa:DEV=" + self.connectedAudioMac + " " + stopSoundPath # Play on connected audio
                     
                 currIsFog = isFog
                 #if isFog and not GPIO.input(self.LED_PIN):
