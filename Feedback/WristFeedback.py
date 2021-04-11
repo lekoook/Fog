@@ -112,6 +112,7 @@ class WristDeviceThread(threading.Thread):
         self.printPrefix = "[" + self.__class__.__name__ + "]:\t"
         self.vibChar = None
         self.device = None
+        self.lastTime = time.time()
 
     def run(self):
         deviceFound = False
@@ -120,14 +121,15 @@ class WristDeviceThread(threading.Thread):
             try:
                 if deviceFound:
                     self.device.waitForNotifications(0.1)
-                    if self.fogOn.isSet():
-                        self.fogOn.clear()
-                        self.print("Activate vibration")
-                        self.vibChar.write(bytes("1", encoding="utf-8"))
-                    if self.fogOff.isSet():
-                        self.fogOff.clear()
-                        self.print("Deactivate vibration")
-                        self.vibChar.write(bytes("2", encoding="utf-8"))
+                    currTime = time.time()    
+                    if currTime - self.lastTime > 1.0:
+                        self.lastTime = currTime
+                        if self.fogOn.isSet():
+                                self.print("Activate vibration")
+                                self.vibChar.write(bytes("1", encoding="utf-8"))
+                        else:
+                            self.print("Deactivate vibration")
+                            self.vibChar.write(bytes("2", encoding="utf-8"))
                 else:
                     if self.setupDevice(DEVICE_NAME):
                         self.print("Device setup success.")
@@ -243,7 +245,7 @@ class WristDeviceThread(threading.Thread):
         self.fogOn.set()
 
     def deactivateVib(self):
-        self.fogOff.set()
+        self.fogOn.clear()
 
     def print(self, *objs, **kwargs):
         builtins.print(self.printPrefix, *objs, **kwargs)
