@@ -34,7 +34,9 @@
 // BLE GATT definitions
 #define IMU_SERVICE 0xABC0
 #define DATA_CHAR 0xABC1
+#define LASER_CHAR 0xABC2
 #define DATA_CHAR_DESC "Data stream"
+#define LASER_CHAR_DESC "Laser activation"
 #define IMU_SRV_LOW (IMU_SERVICE & 0x00FF)
 #define IMU_SRV_HIGH ((IMU_SERVICE & 0xFF00) >> 8)
 #define DATA_MIN_SIZE 3
@@ -62,6 +64,7 @@ void packData(
     uint8_t buffer[MSG_LEN]);
 void sendMsg(int32_t charId, uint8_t msg[], uint16_t size);
 IMUValue getImuValues();
+void BleGattRX(int32_t chars_id, uint8_t data[], uint16_t len);
 
 // Create the bluefruit object, either software serial...uncomment these lines
 /*
@@ -88,6 +91,7 @@ uint8_t msgBuf[MSG_LEN] = { 0 };
 /* The service information */
 int32_t imuServiceId;
 int32_t dataCharId;
+int32_t laserCharId;
 
 void setup(void)
 {
@@ -134,6 +138,15 @@ void setup(void)
         Serial.println(F("Could not add IMU data stream characteristic"));
     }
 
+    // Add the characteristics for laser activation
+    Serial.println(F("Adding the laser activation characteristic"));
+    laserCharId = gatt.addCharacteristic(LASER_CHAR, GATT_CHARS_PROPERTIES_NOTIFY, DATA_MIN_SIZE, 
+        DATA_MAX_SIZE, BLE_DATATYPE_INTEGER, LASER_CHAR_DESC);
+    if (laserCharId == 0) 
+    {
+        Serial.println(F("Could not add laser activation characteristic"));
+    }
+
     /* Add the IMU Service to the advertising data */
     Serial.print(F("Adding IMU Service UUID to the advertising payload: "));
     uint8_t advdata[] { 0x02, 0x01, 0x06, 0x03, 0x02, IMU_SRV_HIGH, IMU_SRV_HIGH };
@@ -161,6 +174,9 @@ void setup(void)
         Serial.println("Failed to detect and initialize LIS3MDL");
     }
     lis3mdl.enableDefault();
+
+    pinMode(6, OUTPUT);
+    ble.setBleGattRxCallback(laserCharId, BleGattRX);
 }
 
 void loop(void)
@@ -285,4 +301,17 @@ IMUValue getImuValues()
     v.magVect.y = magn.y;
     v.magVect.z = magn.z;
     return v;
+}
+
+void BleGattRX(int32_t chars_id, uint8_t data[], uint16_t len)
+{
+  Serial.print( F("[BLE GATT RX] (" ) );
+  Serial.print(chars_id);
+  Serial.print(") ");
+  
+  if (chars_id == laserCharId)
+  {  
+    Serial.write(data, len);
+    Serial.println();
+  }
 }
